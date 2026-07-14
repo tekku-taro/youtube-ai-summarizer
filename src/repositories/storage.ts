@@ -1,16 +1,16 @@
-declare global {
-  interface Window {
-    chrome?: {
-      storage?: {
-        local?: {
-          get: (key: string | string[]) => Promise<Record<string, unknown>>;
-          set: (items: Record<string, unknown>) => Promise<void>;
-          remove: (keys: string | string[]) => Promise<void>;
-        };
-      };
-    };
-  }
-}
+// declare global {
+//   interface Window {
+//     chrome?: {
+//       storage?: {
+//         local?: {
+//           get: (key: string | string[]) => Promise<Record<string, unknown>>;
+//           set: (items: Record<string, unknown>) => Promise<void>;
+//           remove: (keys: string | string[]) => Promise<void>;
+//         };
+//       };
+//     };
+//   }
+// }
 
 export const storage = {
   async get<T>(key: string): Promise<T | null> {
