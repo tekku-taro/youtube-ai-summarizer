@@ -5,3 +5,5 @@ export * from '@/value-objects/SummaryType';
 export * from '@/value-objects/ThinkingMode';
 export * from '@/value-objects/TokenUsage';
 export * from '@/value-objects/TranscriptSegment';
+export * from '@/value-objects/AIMessage';
+export * from '@/value-objects/TabType';

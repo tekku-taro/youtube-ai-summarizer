@@ -1,4 +1,4 @@
-import { ProviderType } from '@/value-objects/ProviderType';
+import type { ProviderType } from "./ProviderType";
 
 export interface AIExecutionOptions {
   provider: ProviderType;

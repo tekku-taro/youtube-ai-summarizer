@@ -5,3 +5,4 @@ export * from '@/models/Settings';
 export * from '@/models/SummaryData';
 export * from '@/models/TranscriptData';
 export * from '@/models/VideoData';
+export * from '@/models/GenerateResult';

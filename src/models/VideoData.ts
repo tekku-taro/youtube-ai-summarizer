@@ -1,6 +1,6 @@
-import type { ChatSession } from '@/models/ChatSession';
-import type { SummaryData } from '@/models/SummaryData';
-import type { TranscriptData } from '@/models/TranscriptData';
+import type { ChatSession } from '@/models';
+import type { SummaryData } from '@/models';
+import type { TranscriptData } from '@/models';
 
 export interface VideoData {
   videoId: string;
