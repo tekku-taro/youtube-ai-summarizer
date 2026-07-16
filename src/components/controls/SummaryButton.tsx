@@ -1,3 +1,5 @@
+import { Button } from "../ui/button";
+
 export interface SummaryButtonProps {
   loading?: boolean;
   disabled?: boolean;
@@ -8,9 +10,11 @@ export function SummaryButton({ loading, disabled, onClick }: SummaryButtonProps
   return (
     <div className="summary-button">
 
-      <button type="button" disabled={disabled} onClick={onClick}>
+      <Button variant="default" type="button" disabled={disabled} onClick={onClick}
+        className="cursor-pointer"
+      >
         {loading ? '要約中...' : '要約実行'}
-      </button>
+      </Button>
 
     </div>
   );

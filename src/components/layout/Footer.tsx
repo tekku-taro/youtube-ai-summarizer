@@ -1,3 +1,5 @@
+import { Button } from "../ui/button";
+
 export function Footer() {
   return (
     <footer
@@ -7,20 +9,25 @@ export function Footer() {
         justify-between
         border-t
         p-4
+        sticky
       "    
     >
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        className="cursor-pointer"
       >
         Copy
-      </button>
+      </Button>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        className="cursor-pointer"
       >
         Markdown保存
-      </button>
+      </Button>
 
     </footer>
   );

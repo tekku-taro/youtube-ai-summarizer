@@ -8,6 +8,7 @@ import type { TabType } from '@/value-objects/TabType';
 
 export interface IAppStore {
   initialize(
+    isYoutubePage:boolean,
     settings: Settings,
     providerConfig: ProviderConfig,
     models: ModelInfo[],

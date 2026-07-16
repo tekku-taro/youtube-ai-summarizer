@@ -1,8 +1,9 @@
-export function Header() {
+export function Header({isYoutubePage}:{
+  isYoutubePage:boolean;
+}) {
   return (
     <header
       className="
-        header
         flex
         items-center
         justify-between
@@ -12,9 +13,16 @@ export function Header() {
       "    
     >
 
-      <h1>
-        YouTube AI Assistant
-      </h1>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold">
+          YouTube AI Assistant
+        </h1>
+        {!isYoutubePage && (
+          <p className="font-medium text-red-600">
+            Youtube サイトの動画ページを開いてください。
+          </p>
+        )}
+      </div>
 
       <button
         type="button"

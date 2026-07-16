@@ -1,5 +1,15 @@
 import type { ProviderType } from '@/value-objects';
 import type { SelectOption } from './types';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from '../ui/label';
+import { cn } from '@/lib/utils';
 
 export interface ProviderSelectorProps {
   value: ProviderType;
@@ -10,35 +20,33 @@ export interface ProviderSelectorProps {
 
 export function ProviderSelector({ value, options, disabled, onChange }: ProviderSelectorProps) {
   return (
-    <div className="form-row">
+    <div className="form-row flex gap-3">
+      <Label htmlFor="provider" className={cn("w-[90px] text-sm text-gray-700")}>
+          Provider
+      </Label>
 
-      <label htmlFor="provider">
-        Provider
-      </label>
-
-      <select
+      <Select 
         id="provider"
         value={value}
+        items={options}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value as ProviderType)}
+        onValueChange={(v:ProviderType|null) => {
+          onChange(v as ProviderType);
+        }}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-
-        {/* <option value="gemini">
-          Gemini
-        </option>
-
-        <option value="lmstudio">
-          LM Studio
-        </option>
-      </select>
-
-    </div> */}
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Provider Type" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

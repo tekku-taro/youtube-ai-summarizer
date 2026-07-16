@@ -2,8 +2,8 @@ import { TabType } from '@/value-objects';
 import { SummaryTab } from './SummaryTab';
 import { TranscriptTab } from './TranscriptTab';
 import { ChatTab } from './ChatTab';
-import { TabButton } from './TabButton';
 import type { ChatSession, TranscriptData } from '@/models';
+import { Tabs as ShadnuiTabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export interface TabsProps {
     activeTab: TabType;
@@ -31,67 +31,35 @@ export function Tabs({
   return (
     <section 
       className="
-        flex
         h-full
-        flex-col
+        p-4
       "    
     >
-
-      <div
-
-        className="
-          flex
-          border-b
-        "      
-      >
-
-        <TabButton
-          tab={TabType.Summary}
-          active={activeTab === TabType.Summary}
-          onClick={onTabChange}
-        >
-          Summary
-        </TabButton>
-
-        <TabButton
-          tab={TabType.Transcript}
-          active={activeTab === TabType.Transcript}
-          onClick={onTabChange}
-        >
-          Transcript
-        </TabButton>
-
-        <TabButton
-          tab={TabType.Chat}
-          active={activeTab === TabType.Chat}
-          onClick={onTabChange}
-        >
-          Chat
-        </TabButton>
-
-      </div>
-
-      <div
-        className="
-          flex-1
-          overflow-hidden
-        "      
-      >
-
-        <div hidden={activeTab !== TabType.Summary}>
+    <ShadnuiTabs defaultValue={activeTab} className="w-[400px]">
+      <TabsList>
+        <TabsTrigger 
+          value={TabType.Summary}
+          onClick={() => onTabChange(TabType.Summary)}        
+        >要約</TabsTrigger>
+        <TabsTrigger 
+          value={TabType.Transcript}
+          onClick={() => onTabChange(TabType.Transcript)}        
+        >トランスクリプト</TabsTrigger>
+        <TabsTrigger 
+          value={TabType.Chat}
+          onClick={() => onTabChange(TabType.Chat)}        
+        >チャット</TabsTrigger>
+      </TabsList>
+      <TabsContent value={TabType.Summary}>
           <SummaryTab markdown={summaryMarkdown} />
-        </div>
-
-        <div hidden={activeTab !== TabType.Transcript}>
+      </TabsContent>
+      <TabsContent value={TabType.Transcript}>
           <TranscriptTab transcript={transcript} onSeek={onSeek} />
-        </div>
-
-        <div hidden={activeTab !== TabType.Chat}>
+      </TabsContent>
+      <TabsContent value={TabType.Chat}>
           <ChatTab session={chatSession} onSend={onSendChat} loading={loading}  />
-        </div>
-
-      </div>
-
+      </TabsContent>
+    </ShadnuiTabs>
     </section>
   );
 }

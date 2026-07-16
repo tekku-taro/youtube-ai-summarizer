@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { TabType } from '@/value-objects';
+import { Button } from '../ui/button';
 
 export interface TabButtonProps {
   tab: TabType;
@@ -18,12 +19,14 @@ export function TabButton({
   onClick,
 }: TabButtonProps) {
   return (
-    <button
-      type="button"
-      className={active ? 'tab active' : 'tab'}
-      onClick={() => onClick(tab)}
-    >
-      {children}
-    </button>
+    <>
+      <Button
+        type="button"
+        className={active ? 'tab active' : 'tab'}
+        onClick={() => onClick(tab)}
+      >
+        {children}
+      </Button>
+    </>
   );
 }

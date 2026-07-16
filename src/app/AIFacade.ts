@@ -12,7 +12,7 @@ import { GenerateService } from '@/services/GenerateService';
 
 import { ProviderFactory } from '@/providers/ProviderFactory';
 
-import type { ProviderConfig, Settings, SummaryData, VideoData } from '@/models';
+import type { ChatSession, ProviderConfig, Settings, SummaryData, VideoData } from '@/models';
 import type { ChatRequestDto, ChatResult, ModelListResult, SummaryRequestDto, SummaryResult } from '@/dto';
 import {toPlainText} from '@/utils/TranscriptUtil';
 import type { ModelInfo, ProviderType, SummaryType, TabType } from '@/value-objects';
@@ -101,6 +101,7 @@ export class AIFacade {
     this.models = newModels;
 
     await this.appStore.initialize(
+        true,
         newSettings,
         newProviderConfig,
         newModels,
@@ -115,6 +116,7 @@ export class AIFacade {
     this.settings = newSettings;
     await this.settingsRepository.save(newSettings)
     await this.appStore.initialize(
+        true,
         newSettings,
         this.providerConfig,
         this.models,
@@ -129,6 +131,7 @@ export class AIFacade {
     this.settings = newSettings;
     await this.settingsRepository.save(newSettings)
     await this.appStore.initialize(
+        true,
         newSettings,
         this.providerConfig,
         this.models,
@@ -143,6 +146,7 @@ export class AIFacade {
     this.settings = newSettings;
     await this.settingsRepository.save(newSettings)
     await this.appStore.initialize(
+        true,
         newSettings,
         this.providerConfig,
         this.models,
@@ -157,11 +161,17 @@ export class AIFacade {
    * アプリケーションを初期化する。
    */
   public async initialize(): Promise<InitialState> {
+    let isYoutubePage = true;
     try {
       this.appStore.setLoading(true);
-      this.videoId =
+      const res =
           await this.currentVideoService
               .getCurrentVideoId();
+      if(res === false) {
+        //  throw new Error('Current tab URL not found.');
+        isYoutubePage = false;
+      }
+      this.videoId = res as string;
       this.settings = await this.settingsRepository.find();
 
       this.providerConfig = await this.providerRepository.find(
@@ -179,6 +189,7 @@ export class AIFacade {
       this.models = modelList.models;
 
       this.appStore.initialize(
+          isYoutubePage,
           this.settings,
           this.providerConfig,
           this.models
@@ -195,6 +206,7 @@ export class AIFacade {
     }
 
     return {
+      isYoutubePage: isYoutubePage,
       settings: this.settings,
       provider: this.providerConfig,
       models: this.models,
@@ -297,6 +309,45 @@ export class AIFacade {
 
 
   /**
+   * AIチャットセッションを開始する。
+   * @param request AIチャットセッションの開始リクエスト
+   * @returns AIチャットセッション
+   */
+  public async startSession(): Promise<ChatSession> {
+
+    const video =
+      await this.videoRepository.find(this.videoId!);
+
+    if (!video) {
+      throw new Error('Video Data not found.');
+    }
+
+    let session =
+      video.chatSessions.at(-1);
+
+    if (session) {
+      return session;
+    }
+
+    session = {
+      id: crypto.randomUUID(),
+      provider: this.settings.provider,
+      model: this.settings.model,
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    video.chatSessions.push(session);
+    video.updatedAt = session.updatedAt;
+
+    await this.videoRepository.save(video);
+    this.currentVideo = video;
+    this.appStore.setCurrentVideo(video);
+
+    return session;
+  }
+
+  /**
    * AIチャットを実行する。
    */
   public async chat(
@@ -313,11 +364,11 @@ export class AIFacade {
       throw new Error('Transcript not found.');
     }
 
-    const session =
+    let session =
       video.chatSessions.find(s => s.id === request.chatSessionId);
 
     if (!session) {
-      throw new Error('Chat session not found.');
+      session = await this.startSession();
     }
 
     const result =
@@ -364,6 +415,15 @@ export class AIFacade {
 
     return await aiProvider.getModels();
   }
+
+  public getError(): string | undefined {
+    const error = this.appStore.getError();
+    if ( error ){
+      return error;
+    }
+    return undefined;
+  }
+
 
 
   /**

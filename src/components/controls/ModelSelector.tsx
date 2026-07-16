@@ -1,3 +1,6 @@
+import { cn } from '@/lib/utils';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import type { SelectOption } from './types';
 
 export interface ModelSelectorProps {
@@ -9,28 +12,33 @@ export interface ModelSelectorProps {
 
 export function ModelSelector({ value, options, disabled, onChange }: ModelSelectorProps) {
   return (
-    <div className="form-row">
+    <div className="form-row flex gap-3">
+      <Label htmlFor="model" className={cn("w-[90px] text-sm text-gray-700")}>
+          Model
+      </Label>
 
-      <label htmlFor="model">
-        Model
-      </label>
-
-      <select
+      <Select 
         id="model"
-        defaultValue=""
         value={value}
+        items={options}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        onValueChange={(v:string|null) => {
+          onChange(v as string);
+        }}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-        {/* <option value="">
-          GPT-5
-        </option> */}
-      </select>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select model" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
 
     </div>
   );

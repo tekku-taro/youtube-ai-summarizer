@@ -53,17 +53,17 @@ export function ControlPanel({ provider, providers, model, models, thinking, sum
         onChange={onModelChange}
       />
 
-      <ThinkingSwitch 
-        checked={thinking}
-        disabled={loading ?? false}
-        onChange={onThinkingChange}
-      />
-
       <SummaryTypeSelector 
         value={summaryType}
         options={summaryTypes}
         disabled={loading ?? false}
         onChange={onSummaryTypeChange}
+      />
+
+      <ThinkingSwitch 
+        checked={thinking}
+        disabled={loading ?? false}
+        onChange={onThinkingChange}
       />
 
       <SummaryButton 

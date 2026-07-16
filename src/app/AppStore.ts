@@ -13,11 +13,13 @@ import type { IAppStore } from './IAppStore';
 
 export class AppStore implements IAppStore {
   public initialize(
+    isYoutubePage:boolean,
     settings: Settings,
     providerConfig: ProviderConfig,
     models: ModelInfo[],
   ): void {
     useAppStore.getState().initialize(
+      isYoutubePage,
       settings,
       providerConfig,
       models,
@@ -63,6 +65,11 @@ export class AppStore implements IAppStore {
       .getState()
       .setError(error);
   }
+
+  public getError(): string | undefined {
+    return useAppStore.getState().error;
+  }
+
 
   public reset(): void {
     useAppStore
