@@ -15,13 +15,30 @@ export class FileUtil {
 
   public static createMarkdownFileName(videoId: string, createdAtIso: string): string {
     const createdAt = new Date(createdAtIso);
-    const year = createdAt.getFullYear();
-    const month = String(createdAt.getMonth() + 1).padStart(2, '0');
-    const day = String(createdAt.getDate()).padStart(2, '0');
-    const hours = String(createdAt.getHours()).padStart(2, '0');
-    const minutes = String(createdAt.getMinutes()).padStart(2, '0');
-    const seconds = String(createdAt.getSeconds()).padStart(2, '0');
+    if (isNaN(createdAt.getTime())) {
+      throw new Error('Invalid Date');
+    }
 
-    return `youtube-summary-${videoId}-${year}${month}${day}-${hours}${minutes}${seconds}.md`;
+    // 👇 Intl.DateTimeFormat を使って日本時間で各パーツを分解して取得
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+
+    // formatToParts() を使うと、[ { type: 'year', value: '2026' }, ... ] のような配列が取れます
+    const parts = formatter.formatToParts(createdAt);
+    
+    // 必要なパーツをオブジェクトにマッピング
+    const p = Object.fromEntries(parts.map(part => [part.type, part.value]));
+
+    // p.year = '2026', p.month = '07', p.day = '16' ... とアクセスできるようになります
+    const timestamp = `${p.year}${p.month}${p.day}-${p.hour}${p.minute}${p.second}`;
+    return `youtube-summary-${videoId}-${timestamp}.md`;
   }
 }

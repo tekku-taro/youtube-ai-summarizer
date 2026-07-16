@@ -6,6 +6,7 @@ export class SettingsRepository {
 
   public async find(): Promise<Settings> {
     const stored = await storage.get<Settings>(this.key);
+    // console.log('SettingsRepository.find()', stored);
 
     return (
       stored ?? {

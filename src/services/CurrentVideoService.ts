@@ -3,27 +3,26 @@ import type { ICurrentVideoService } from "./ICurrentVideoService";
 
 export class CurrentVideoService  implements ICurrentVideoService {
 
-  public async getCurrentVideoId(): Promise<string> {
+  public async getCurrentVideoId(): Promise<string|boolean> {
 
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
     });
-
+    console.log('tab', tab);
     if (!tab || !tab.url) {
-      throw new Error('Current tab URL not found.');
+      return false;
     }
 
     const url = new URL(tab.url);
-    // よりシンプルな方法
-    // const url =
-    //     new URL(window.location.href);
 
+    console.log('url', url);
 
     const videoId = url.searchParams.get('v');
 
+    console.log('videoId', videoId);
     if (!videoId) {
-      throw new Error('Not a YouTube watch page.');
+      return false;
     }
 
     return videoId;

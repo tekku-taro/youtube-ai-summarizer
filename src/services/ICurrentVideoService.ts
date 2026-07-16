@@ -1,3 +1,3 @@
 export interface ICurrentVideoService {
-  getCurrentVideoId(): Promise<string>;
+  getCurrentVideoId(): Promise<string|boolean>;
 }

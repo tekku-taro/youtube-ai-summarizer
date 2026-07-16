@@ -1,6 +1,7 @@
 export const ProviderType = {
   OpenAI: 'OpenAI',
   Gemini: 'Gemini',
+  Anthropic: 'Anthropic',
   LMStudio: 'LMStudio',
 } as const;
 
@@ -14,6 +15,10 @@ export const providerOptions = [
   {
     value: ProviderType.Gemini,
     label: 'Gemini',
+  },
+  {
+    value: ProviderType.Anthropic,
+    label: 'Anthropic',
   },
   {
     value: ProviderType.LMStudio,

@@ -12,13 +12,15 @@ interface AppStoreState {
 
   initialized: boolean;
 
+  isYoutubePage: boolean;
+
   loading: boolean;
 
   error?: string|undefined;
 
   settings?: Settings|undefined;
 
-  providerConfig?: ProviderConfig;
+  providerConfig?: ProviderConfig|undefined;
 
   models: ModelInfo[];
 
@@ -30,6 +32,7 @@ interface AppStoreState {
 
 interface AppStoreActions {
   initialize(
+    isYoutubePage:boolean,
     settings: Settings,
     providerConfig: ProviderConfig,
     models: ModelInfo[],
@@ -38,6 +41,8 @@ interface AppStoreActions {
   setLoading(loading: boolean): void;
 
   setError(error?: string): void;
+
+  getError(): string|undefined;
 
   setCurrentVideo(video: VideoData): void;
 
@@ -51,19 +56,22 @@ interface AppStoreActions {
 }
 
 export const useAppStore =
-  create<AppStoreState & AppStoreActions>((set) => ({
+  create<AppStoreState & AppStoreActions>((set, get) => ({
     initialized: false,
+    isYoutubePage:false,
     loading: false,
     activeTab: TabType.Transcript,
     models: [],
 
     initialize: (
+      isYoutubePage,
       settings,
       providerConfig,
       models,
     ) =>
       set({
         initialized: true,
+        isYoutubePage:isYoutubePage,
         loading: false,
         error: undefined,
         settings,
@@ -83,6 +91,7 @@ export const useAppStore =
         error,
       }),
 
+    getError: () => get().error,
 
     setCurrentVideo: (video) =>
       set({
@@ -106,10 +115,13 @@ export const useAppStore =
     reset: () =>
       set({
         initialized: false,
+        isYoutubePage:false,
         loading: false,
         error: undefined,
         settings: undefined,
         currentVideo: undefined,
+        providerConfig:undefined,
         models: [],
+        activeTab:TabType.Transcript,
       }),
   }));
