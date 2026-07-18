@@ -7,8 +7,16 @@ export default defineManifest({
   action: {
     default_popup: 'src/index.html',
   },
+  background: {
+    service_worker: 'src/background/background.ts',
+    type: 'module', // TypeScript や一連の import文 を動かすため
+  },  
   permissions: [
     'tabs',   // タブ情報の取得用
-    'storage' // ← ストレージへのアクセス権限を追加
-  ]
+    'storage', // ← ストレージへのアクセス権限を追加
+    "declarativeNetRequest"
+  ],
+  host_permissions: [
+    'https://www.youtube.com/*',
+  ],
 })

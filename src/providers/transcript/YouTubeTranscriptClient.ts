@@ -1,5 +1,3 @@
-import { fetchTranscript } from 'youtube-transcript';
-
 import type { TranscriptData } from '@/models/TranscriptData';
 import type { TranscriptSegment } from '@/value-objects';
 
