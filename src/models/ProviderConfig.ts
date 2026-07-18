@@ -4,5 +4,5 @@ export interface ProviderConfig {
   provider: ProviderType;
   apiKey?: string;
   baseUrl: string;
-  timeout: number;
+  timeout?: number;
 }

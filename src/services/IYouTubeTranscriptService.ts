@@ -1,4 +1,4 @@
-import type { TranscriptData } from '@/models/TranscriptData';
+import type { ITranscriptResponse } from '@/providers/transcript/ITranscriptClient';
 
 export interface IYouTubeTranscriptService {
   /**
@@ -6,5 +6,5 @@ export interface IYouTubeTranscriptService {
    *
    * @param videoId YouTube動画ID
    */
-  getTranscript(videoId: string): Promise<TranscriptData>;
+  getTranscript(videoId: string): Promise<ITranscriptResponse>;
 }

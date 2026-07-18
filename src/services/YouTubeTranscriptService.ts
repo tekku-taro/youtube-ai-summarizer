@@ -1,8 +1,7 @@
-import type { TranscriptData } from '@/models/TranscriptData';
-
 import type { ITranscriptClient } from '@/providers/transcript/ITranscriptClient';
 
 import type { IYouTubeTranscriptService } from './IYouTubeTranscriptService';
+import type { YouTubeTranscriptResponse } from '@/providers/transcript/YouTubeTranscriptClient';
 
 export class YouTubeTranscriptService implements IYouTubeTranscriptService {
   private readonly transcriptClient;
@@ -16,7 +15,7 @@ export class YouTubeTranscriptService implements IYouTubeTranscriptService {
    */
   public async getTranscript(
     videoId: string,
-  ): Promise<TranscriptData> {
+  ): Promise<YouTubeTranscriptResponse> {
     return this.transcriptClient.getTranscript(videoId);
   }
 }
