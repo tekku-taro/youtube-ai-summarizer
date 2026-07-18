@@ -5,8 +5,9 @@ import type { TranscriptData } from '@/models';
 export interface VideoData {
   videoId: string;
   title: string;
-  channelTitle: string;
+  channelId: string;
   duration: number;
+  no_transcript: boolean;
   transcript?: TranscriptData;
   summaries: SummaryData[];
   chatSessions: ChatSession[];

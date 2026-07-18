@@ -19,6 +19,7 @@ import type { ModelInfo, ProviderType, SummaryType, TabType } from '@/value-obje
 
 import type { AppStore } from './AppStore';
 import type { ICurrentVideoService } from '@/services/ICurrentVideoService';
+import { DateUtil } from '@/utils';
 
 export class AIFacade {
   private readonly settingsRepository;
@@ -218,6 +219,18 @@ export class AIFacade {
    */
   public async getTranscript(
   ): Promise<TranscriptResult> {
+
+    if(!this.videoId) {
+      return { transcript: {
+          language: '',
+          source: '',
+          generatedAt: '',
+          segments: []
+        }, 
+        fromCache: false 
+      };
+    }
+
     let video =
       await this.videoRepository.find(this.videoId!);
 
@@ -229,33 +242,58 @@ export class AIFacade {
       };
     }
 
-    const transcript =
-      await this.transcriptService.getTranscript(this.videoId!);
+    try {
+      const response =
+        await this.transcriptService.getTranscript(this.videoId!);
 
-    if (!video) {
-      video = {
-          videoId:this.videoId!,
-          title: '',
-          channelTitle: '',
-          duration: 0,
-          summaries: [],
-          chatSessions: [],
-          createdAt: transcript.generatedAt,
-          updatedAt: transcript.generatedAt,
+      if (!video) {
+        video = {
+            videoId:this.videoId!,
+            title: '',
+            channelId: '',
+            duration: 0,
+            summaries: [],
+            chatSessions: [],
+            no_transcript:false,
+            createdAt: response.transcript.generatedAt,
+            updatedAt: response.transcript.generatedAt,
+        };      
+      }
+      video.title = response.title;
+      video.channelId = response.channelId;
+      video.duration = response.duration;
+      video.transcript = response.transcript;
+      video.updatedAt = response.transcript.generatedAt;
+      video.no_transcript = (response.transcript.segments.length === 0) ? true: false;
+
+      await this.videoRepository.save(video);
+      this.currentVideo = video;
+
+      this.appStore.setCurrentVideo(video);
+      
+      return {
+        transcript:response.transcript,
+        fromCache: false,
       };      
+    } catch (error) {
+        this.appStore.setError(
+            error instanceof Error
+                ? error.message
+                : 'getTranscript failed.',
+        );
+
+        return {
+          transcript: {
+              language: 'unknown',
+              source: 'youtube',
+              generatedAt: DateUtil.nowIso(),
+              segments:[],
+          },
+          fromCache: false,
+        }
     }
-    video.transcript = transcript;
-    video.updatedAt = transcript.generatedAt;
 
-    await this.videoRepository.save(video);
-    this.currentVideo = video;
 
-    this.appStore.setCurrentVideo(video);
-    
-    return {
-      transcript,
-      fromCache: false,
-    };
   }
 
   /**
