@@ -11,7 +11,7 @@ describe('MarkdownService', () => {
   const mockVideo = {
     videoId: 'dQw4w9WgXcQ',
     title: 'リック・アストリーのダンス講座',
-    channelTitle: 'RickAstleyVEVO',
+    channelId: 'RickAstleyVEVO',
     duration: 212,
   } as unknown as VideoData;
 

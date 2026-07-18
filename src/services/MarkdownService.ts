@@ -23,7 +23,7 @@ export class MarkdownService {
 
     lines.push('## 動画情報');
     lines.push('');
-    lines.push(`- Channel: ${video.channelTitle}`);
+    lines.push(`- Channel: ${video.channelId}`);
     lines.push(`- Duration: ${video.duration} sec`);
     lines.push('');
 
@@ -77,7 +77,7 @@ export class MarkdownService {
 
     lines.push('## 動画情報');
     lines.push('');
-    lines.push(`- Channel: ${video.channelTitle}`);
+    lines.push(`- Channel: ${video.channelId}`);
     lines.push(`- Duration: ${video.duration} sec`);
     lines.push('');
 

@@ -21,7 +21,7 @@ describe('VideoRepository', () => {
   const createMockVideo = (id: string): VideoData => ({
     videoId: id,
     title: `Video ${id}`,
-    channelTitle: 'Channel Title',
+    channelId: 'RickAstleyVEVO',
     duration: 120,
     summaries: [],
     chatSessions: [],

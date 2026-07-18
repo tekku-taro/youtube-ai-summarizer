@@ -18,6 +18,11 @@ export class CurrentVideoService  implements ICurrentVideoService {
 
     console.log('url', url);
 
+    if (!this.isTargetPage('www.youtube.com/watch', url)) {
+      return false;
+    }
+
+
     const videoId = url.searchParams.get('v');
 
     console.log('videoId', videoId);
@@ -27,4 +32,9 @@ export class CurrentVideoService  implements ICurrentVideoService {
 
     return videoId;
   }
+
+  private isTargetPage(target: string, url:URL):boolean {
+    const current = `${url.hostname}${url.pathname}`;
+    return current === target;
+  }  
 }

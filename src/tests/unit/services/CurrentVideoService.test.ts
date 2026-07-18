@@ -79,7 +79,7 @@ describe('CurrentVideoService', () => {
 
   it('YouTube以外の全く異なるWebページにいる場合、falseを返すこと', async () => {
     const mockTab = {
-      url: 'https://github.com/vitest-dev/vitest',
+      url: 'https://github.com/vitest-dev/vitest?v=dQw4w9WgXcQ',
     };
     
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
