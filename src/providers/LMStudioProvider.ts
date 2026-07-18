@@ -15,6 +15,7 @@ export class LMStudioProvider implements IAIProvider {
   }
 
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {
+    const timeout = this.config.timeout ?? 30000;
     const result = await this.httpClient.post<{
       choices?: Array<{ message?: { content?: string } }>;
       usage?: {
@@ -34,7 +35,7 @@ export class LMStudioProvider implements IAIProvider {
         messages: request.messages.map((message) => ({ role: message.role, content: message.content })),
         temperature: request.options.thinking ? 0.2 : 0.7,
       },
-      timeout: this.config.timeout,
+      timeout: timeout,
     });
 
     return {
@@ -49,13 +50,14 @@ export class LMStudioProvider implements IAIProvider {
   }
 
   public async getModels(): Promise<ModelListResult> {
+    const timeout = this.config.timeout ?? 30000;
     const result = await this.httpClient.get<{ data?: Array<{ id?: string; name?: string }> }>({
       method: 'GET',
       url: `${this.config.baseUrl}/v1/models`,
       headers: {
         Authorization: `Bearer ${this.config.apiKey ?? ''}`,
       },
-      timeout: this.config.timeout,
+      timeout: timeout,
     });
 
     const models: ModelInfo[] = (result.data.data ?? []).map((model) => ({

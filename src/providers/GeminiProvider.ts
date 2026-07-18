@@ -15,6 +15,7 @@ export class GeminiProvider implements IAIProvider {
   }
 
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {
+    const timeout = this.config.timeout ?? 30000;
     const result = await this.httpClient.post<{
       candidates?: Array<{
         content?: { parts?: Array<{ text?: string }> };
@@ -41,7 +42,7 @@ export class GeminiProvider implements IAIProvider {
           temperature: request.options.thinking ? 0.2 : 0.7,
         },
       },
-      timeout: this.config.timeout,
+      timeout: timeout,
     });
 
     const content = result.data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
@@ -58,13 +59,14 @@ export class GeminiProvider implements IAIProvider {
   }
 
   public async getModels(): Promise<ModelListResult> {
+    const timeout = this.config.timeout ?? 30000;
     const result = await this.httpClient.get<{ models?: Array<{ name?: string }> }>({
       method: 'GET',
       url: `${this.config.baseUrl}/${this.config.apiKey ?? ''}:listModels`,
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: this.config.timeout,
+      timeout: timeout,
     });
 
     const models: ModelInfo[] = (result.data.models ?? []).map((model) => ({
