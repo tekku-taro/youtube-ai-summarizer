@@ -1,5 +1,5 @@
 export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
+  inputTokens: number|undefined;
+  outputTokens: number|undefined;
+  totalTokens: number|undefined;
 }
