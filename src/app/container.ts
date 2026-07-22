@@ -11,6 +11,10 @@ import { YouTubeTranscriptService } from '@/services/YouTubeTranscriptService';
 import { ProviderFactory } from '@/providers/ProviderFactory';
 import { YouTubeTranscriptClient } from '@/providers/transcript/YouTubeTranscriptClient';
 import { CurrentVideoService } from '@/services/CurrentVideoService';
+import { VideoPlayerService } from '@/services/VideoPlayerService';
+import { MarkdownService } from '@/services';
+import { DownloadService } from '@/services/DownloadService';
+import { ClipboardService } from '@/services/ClipboardService';
 
 const appStore = new AppStore();
 const client = new YouTubeTranscriptClient();
@@ -24,4 +28,8 @@ export const aiFacade = new AIFacade(
   new ProviderFactory(),
   appStore,
   new CurrentVideoService(),
+  new VideoPlayerService(),
+  new MarkdownService(),
+  new DownloadService(),
+  new ClipboardService(),
 );

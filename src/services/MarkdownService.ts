@@ -1,3 +1,4 @@
+import type { TranscriptData } from '@/models';
 import type { ChatSession } from '@/models/ChatSession';
 import type { SummaryData } from '@/models/SummaryData';
 import type { VideoData } from '@/models/VideoData';
@@ -110,6 +111,53 @@ export class MarkdownService {
     return lines.join('\n');
   }
 
+/**
+   * トランスクリプト（文字起こし）をMarkdownへ変換する。
+   */
+  public exportTranscript(
+    video: VideoData,
+    transcript: TranscriptData,
+  ): string {
+    const lines: string[] = [];
+
+    lines.push(`# ${video.title}`);
+    lines.push('');
+
+    lines.push(`https://www.youtube.com/watch?v=${video.videoId}`);
+    lines.push('');
+
+    lines.push('---');
+    lines.push('');
+
+    lines.push('## 動画情報');
+    lines.push('');
+    lines.push(`- Channel: ${video.channelId}`);
+    lines.push(`- Duration: ${video.duration} sec`);
+    lines.push('');
+
+    lines.push('## トランスクリプト情報');
+    lines.push('');
+    lines.push(`- Language: ${transcript.language}`);
+    lines.push(`- Source: ${transcript.source}`);
+    lines.push(`- Generated At: ${transcript.generatedAt}`);
+    lines.push('');
+
+    lines.push('---');
+    lines.push('');
+
+    lines.push('## 文字起こし');
+    lines.push('');
+
+    for (const segment of transcript.segments) {
+      const timeLabel = this.formatTimestamp(segment.startSeconds);
+      lines.push(`- **\`${timeLabel}\`** ${segment.text}`);
+    }
+
+    lines.push('');
+
+    return lines.join('\n');
+  }
+
   private getRoleTitle(role: ChatSession['messages'][number]['role']): string {
     switch (role) {
       case 'user':
@@ -125,4 +173,21 @@ export class MarkdownService {
         return role;
     }
   }
+
+/**
+   * 秒数を [HH:MM:SS] または [MM:SS] のタイムスタンプ文字列に整形する。
+   */
+  private formatTimestamp(seconds: number): string {
+    const totalSeconds = Math.floor(seconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+
+    const pad = (num: number): string => String(num).padStart(2, '0');
+
+    if (hours > 0) {
+      return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
+    }
+    return `${pad(minutes)}:${pad(secs)}`;
+  }  
 }
