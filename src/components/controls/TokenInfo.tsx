@@ -6,6 +6,7 @@ export interface TokenInfoProps {
 }
 
 export function TokenInfo({ inputTokens, outputTokens, totalTokens, characterCount }: TokenInfoProps) {
+  console.log('characterCount', characterCount);
   return (
     <section
       className="
@@ -19,7 +20,7 @@ export function TokenInfo({ inputTokens, outputTokens, totalTokens, characterCou
         text-gray-500
       "    
     >
-
+      
       <span>
         入力トークン : {inputTokens}
       </span>
@@ -32,9 +33,9 @@ export function TokenInfo({ inputTokens, outputTokens, totalTokens, characterCou
         全トークン : {totalTokens}
       </span>
 
-      <span>
-        文字数 : {characterCount}
-      </span>
+      {/* <span>
+        トランスクリプト文字数 : {characterCount}
+      </span> */}
 
     </section>
   );

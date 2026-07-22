@@ -32,10 +32,11 @@ export function Tabs({
     <section 
       className="
         h-full
-        p-4
+        py-2
+        px-4
       "    
     >
-    <ShadnuiTabs defaultValue={activeTab} className="w-[400px]">
+    <ShadnuiTabs defaultValue={activeTab} className="w-full">
       <TabsList>
         <TabsTrigger 
           value={TabType.Summary}

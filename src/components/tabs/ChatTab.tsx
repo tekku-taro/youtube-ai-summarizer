@@ -1,5 +1,8 @@
 import type { ChatSession } from '@/models';
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+// import { Button } from '../ui/button';
 
 export interface ChatTabProps {
   session?: ChatSession|undefined;
@@ -25,9 +28,10 @@ export function ChatTab({
     setMessage('');
   };
 
+  console.log('ChatTab session', session);
   return (
-    <section className="flex h-full flex-col">
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+    <section className="flex max-h-[230px] flex-col">
+      <div className="grow space-y-4  overflow-y-auto p-4">
         {session?.messages.map(chat => (
           <article
             key={chat.id}
@@ -37,16 +41,16 @@ export function ChatTab({
               {chat.role === 'user' ? 'あなた' : 'AI'}
             </div>
 
-            <div className="whitespace-pre-wrap">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {chat.content}
-            </div>
+            </ReactMarkdown>
           </article>
         ))}
       </div>
 
-      <div className="space-y-2 border-t p-4">
+      <div className="flex-1 space-y-1 border-t pt-2">
         <textarea
-          className="min-h-24 w-full rounded border p-2"
+          className="min-h-10 w-full rounded border p-2"
           placeholder="動画について質問してください"
           value={message}
           disabled={loading}
@@ -62,16 +66,17 @@ export function ChatTab({
           }}
         />
 
-        <div className="flex justify-end">
-          <button
+        {/* <div className="flex justify-end">
+          <Button
+            variant="info"
+            size="sm"
             type="button"
-            className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
             disabled={loading || message.trim() === ''}
             onClick={handleSend}
           >
             {loading ? '送信中...' : '送信'}
-          </button>
-        </div>
+          </Button>
+        </div> */}
       </div>
     </section>
   );

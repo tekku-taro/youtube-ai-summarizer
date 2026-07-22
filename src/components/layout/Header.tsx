@@ -1,10 +1,20 @@
 import type { VideoData } from "@/models";
 
-export function Header({isYoutubePage, error, currentVideo = null}:{
+export function Header({isYoutubePage, error, currentVideo = null, onClose}:{
   isYoutubePage:boolean;
   error:string|undefined;
-  currentVideo?:VideoData|null;
+  currentVideo?:VideoData|null|undefined;
+  onClose?: () => void;
 }) {
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      // デフォルト動作: ブラウザのポップアップウィンドウを閉じる
+      window.close();
+    }
+  };
+
   return (
     <header
       className="
@@ -41,6 +51,18 @@ export function Header({isYoutubePage, error, currentVideo = null}:{
       <button
         type="button"
         aria-label="Close"
+        onClick={handleClose}
+        className="
+          rounded-md
+          p-1.5
+          text-gray-500
+          hover:bg-gray-100
+          hover:text-gray-700
+          dark:text-gray-400
+          dark:hover:bg-gray-800
+          dark:hover:text-gray-200
+          transition-colors
+        "
       >
         ✕
       </button>

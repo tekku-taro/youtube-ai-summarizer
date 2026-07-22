@@ -1,224 +1,174 @@
+import { useMemo } from 'react';
 import { Header } from './layout/Header';
 import { Footer } from './layout/Footer';
 import { ControlPanel } from '@/components/controls/ControlPanel';
 import { TokenInfo } from '@/components/controls/TokenInfo';
-
 import { Tabs } from '@/components/tabs/Tabs';
-
+import { aiFacade } from '@/app/container';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { useAppStore } from '@/stores';
-import { aiFacade } from '@/app/container';
-import { useEffect } from 'react';
-import { providerOptions, ProviderType, SummaryType, summaryTypeOptions, TabType } from '@/value-objects';
+import { providerOptions, ProviderType, SummaryType, summaryTypeOptions, TabType, type TokenUsage } from '@/value-objects';
 import { toPlainText } from '@/utils';
-import type { ChatSession, SummaryData } from '@/models';
 
 export function Main() {
-  // const initialized = useAppStore(state => state.initialized);
+  const initialized = useAppStore(state => state.initialized);
   const error = useAppStore(state => state.error);
   const isYoutubePage = useAppStore(state => state.isYoutubePage);
-  // const loading = useAppStore(s => s.loading);
-  const loading = false;
-  // const settings = useAppStore(state => state.settings)!;
-  // const models = useAppStore(state => state.models);
-  // const currentVideo = useAppStore(state => state.currentVideo);
-  // const activeTab = useAppStore(state => state.activeTab);
-  const activeTab = 'transcript'; // summary" | "transcript" | "chat"
+  const loading = useAppStore(s => s.loading);
+  const settings = useAppStore(state => state.settings)!;
+  const models = useAppStore(state => state.models);
+  const currentVideo = useAppStore(state => state.currentVideo);
+  const activeTab = useAppStore(state => state.activeTab);
+  // const activeTab = 'transcript'; // summary" | "transcript" | "chat"
 
-  useEffect(() => {
-    async function initialize() {
-      const response = await aiFacade.initialize();
-      console.log('response', response);
+  const summary =
+    currentVideo?.summaries.at(-1);
+  const transcript =
+    currentVideo?.transcript;
+    console.log('currentVideo', currentVideo);
+  const chatSession =
+    currentVideo?.chatSessions.at(-1);
+
+  const totalUsage:TokenUsage =  useMemo(() => {
+    const total = {
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,      
     }
-    initialize();
-  }, []);
+    if(currentVideo && currentVideo.summaries.length > 0) {
+      currentVideo.summaries.forEach(summary => {
+        total.inputTokens += summary.usage?.inputTokens ?? 0;
+        total.outputTokens += summary.usage?.outputTokens ?? 0;
+        total.totalTokens += summary.usage?.totalTokens ?? 0;
+      });
+    }
 
-  // if (!initialized || !settings) {
-  //   return (
-  //     <LoadingOverlay
-  //       loading={loading}
-  //       message="初期化中..."
-  //     />
-  //   );
-  // }
-  const models = [
-    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-    { id: 'gpt-4', name: 'GPT-4' },
-    { id: 'gpt-4-32k', name: 'GPT-4 32K' },
-  ];
+    if(chatSession && chatSession?.messages.length > 0) {
+      chatSession?.messages.forEach(message => {
+        if(message.role === 'assistant') {
+          total.inputTokens += message.usage?.inputTokens ?? 0;
+          total.outputTokens += message.usage?.outputTokens ?? 0;
+          total.totalTokens += message.usage?.totalTokens ?? 0;
+        }
+      });
+    }
+
+    return total;
+  }, [chatSession, currentVideo])
+
+  if (!initialized || !settings) {
+    return (
+      <LoadingOverlay
+        loading={loading}
+        message="初期化中..."
+      />
+    );
+  }
 
   const modelOptions = models.map(model => ({
     value: model.id,
     label: model.name,
   }));
 
-  // const summary =
-  //   currentVideo?.summaries.at(-1);
-const summary: SummaryData = {
-      id: crypto.randomUUID(),
-      cacheKey: 'key 1',
-      summaryType: 'Important',
-      provider: 'OpenAI',
-      model: 'GPT-4',
-      thinking: true,
-      content: 'this is content',
-      promptVersion: '',
-      usage: {
-        inputTokens: 10,
-        outputTokens: 1000,
-        totalTokens : 100
-      },
-      createdAt: '2026-07-15T00:00:00',
-    };
-  // const transcript =
-  //   currentVideo?.transcript;
-  const transcript = {
-    language: 'japanese',
-    source: 'youtube',
-    generatedAt: '2026-07-15T00:00:00',
-    segments: [
-      {
-        startSeconds: 0,
-        endSeconds: 10,
-        text: 'Hello, world!',
-      },
-      {
-        startSeconds: 10,
-        endSeconds: 20,
-        text: 'This is a test transcript segment.'
-      }
-    ]
-  }
-  // const chatSession =
-  //   currentVideo?.chatSessions.at(-1);
-  const chatSession:ChatSession = {
-      id: crypto.randomUUID(),
-      provider: 'OpenAI',
-      model: 'GPT-4',
-      messages: [
-        {
-          id: crypto.randomUUID(),
-          role: 'user',
-          content: 'What is the capital of France?',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: 'The capital of France is Paris.',
-          createdAt: new Date().toISOString(),
-        }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  
-  const settings = {
-    provider: ProviderType.OpenAI,
-    model: 'gpt-4',
-    thinking: false,
-    summaryType: SummaryType.Important,
-    summaryMarkdown: '# This is summary',
-    transcript: transcript,
-  };
-
 
   const handleProviderChange = async (
       provider: ProviderType,
   ) => {
-      // await aiFacade.changeProvider(provider);
+      await aiFacade.changeProvider(provider);
   };
 
   const handleModelChange = (
       model: string,
   ) => {
-      // aiFacade.changeModel(model);
+      aiFacade.changeModel(model);
   };
   const handleThinkingChange = (
       thinking: boolean,
   ) => {
-      // aiFacade.changeThinking(thinking);
+      aiFacade.changeThinking(thinking);
   };
   const handleSummaryTypeChange = (
       summaryType: SummaryType,
   ) => {
-      // aiFacade.changeSummaryType(summaryType);
+      aiFacade.changeSummaryType(summaryType);
   };
   const handleSummarize = async () => {
-    window.alert('handleSummarize')
-    // if (!currentVideo) {
-    //     return;
-    // }
+    if (!currentVideo) {
+      return;
+    }
+    // window.alert('handleSummarize')
 
-    // await aiFacade.summarize({
-    //   summaryType: settings.summaryType,
-    //   options: {
-    //     provider: settings.provider,
-    //     model: settings.model,
-    //     thinking: settings.thinking,
-    //   }
-    // });
+    await aiFacade.summarize({
+      summaryType: settings.summaryType,
+      options: {
+        provider: settings.provider,
+        model: settings.model,
+        thinking: settings.thinking,
+      }
+    });
   };
 
   const handleTabChange = (
       tab: TabType,
   ) => {
-      // aiFacade.setActiveTab(tab);
+      aiFacade.setActiveTab(tab);
   };
   const handleSeek = (
       seconds: number,
   ) => {
-      const url =
-          new URL(window.location.href);
-
-      url.searchParams.set(
-          't',
-          String(seconds),
-      );
-
-      window.location.href =
-          url.toString();
+    aiFacade.seek(seconds);
   };
 
   const handleSendChat = async (
       message: string,
   ) => {
-
-      // if (!currentVideo) {
-      //     return;
-      // }
+      // console.log('chatSession', chatSession)
+      if (!currentVideo) {
+          return;
+      }
 
       // if (!chatSession) {
       //     return;
       // }
 
-      // await aiFacade.chat({
-      //     chatSessionId: chatSession.id,
-      //     userMessage: message,
-      //     options: {
-      //         provider: settings.provider,
-      //         model: settings.model,
-      //         thinking: settings.thinking,
-      //     },
-      // });
+      const session = await aiFacade.chat({
+          chatSessionId: chatSession?.id,
+          userMessage: message,
+          options: {
+              provider: settings.provider,
+              model: settings.model,
+              thinking: settings.thinking,
+          },
+      });
+      console.log('session', session.chatSession)
 
   };  
 
+  const handleDownload = () => {
+    aiFacade.exportMarkdown();
+  };
+  const handleCopy = () => {
+    return aiFacade.exportMarkdown(true);
+  };
 
-  console.log('isYoutubePage', isYoutubePage);  
+
+
+  // console.log('isYoutubePage', isYoutubePage);  
+  console.log('chatSession', chatSession);  
   
   return (
     <div
-      className="     
-        min-h-screen
+      className="
+        h-[600px]       /* ポップアップの最大高さを指定 */
         flex
         flex-col
+        overflow-hidden /* 外側のスクロールバーを抑止 */
       "    
     >
       <Header 
         isYoutubePage={isYoutubePage}
         error={error}
-        // currentVideo={currentVideo}
+        currentVideo={currentVideo}
       />
       {isYoutubePage && (
         <>
@@ -246,13 +196,13 @@ const summary: SummaryData = {
 
           <TokenInfo
             inputTokens={
-                summary?.usage.inputTokens ?? 0
+                totalUsage.inputTokens ?? 0
             }
             outputTokens={
-                summary?.usage.outputTokens ?? 0
+                totalUsage.outputTokens ?? 0
             }
             totalTokens={
-                summary?.usage.totalTokens ?? 0
+                totalUsage.totalTokens ?? 0
             }
             characterCount={
                 transcript
@@ -262,34 +212,32 @@ const summary: SummaryData = {
           />
           <div
             className="
-              flex
-              grow
-              flex-col
-              overflow-hidden
+              grow min-h-0 flex flex-col
             "
           >
 
-            <div className="flex-1 overflow-hidden">
-              <Tabs
-                  activeTab={activeTab}
-                  loading={loading}
-                  summaryMarkdown={
-                      summary?.content ?? ''
-                  }
-                  transcript={
-                      transcript
-                  }
-                  chatSession={
-                      chatSession
-                  }
-                  onTabChange={handleTabChange}
-                  onSeek={handleSeek}
-                  onSendChat={handleSendChat}
-              />
-            </div>
+            <Tabs
+                activeTab={activeTab}
+                loading={loading}
+                summaryMarkdown={
+                    summary?.content ?? ''
+                }
+                transcript={
+                    transcript
+                }
+                chatSession={
+                    chatSession
+                }
+                onTabChange={handleTabChange}
+                onSeek={handleSeek}
+                onSendChat={handleSendChat}
+            />
 
           </div>
-          <Footer />
+          <Footer 
+            handleCopy={handleCopy}
+            handleDownload={handleDownload}          
+          />
         </>
 
       )}

@@ -1,3 +1,6 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 export interface SummaryTabProps {
   markdown: string;
 }
@@ -7,18 +10,17 @@ export function SummaryTab({
 }: SummaryTabProps) {
   return (
     <article
-
       className="
-        h-full
+        h-[230px]
         overflow-y-auto
-        whitespace-pre-wrap
         p-4
-      "    
+        max-w-full
+      "
     >
 
-      <pre>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
         {markdown}
-      </pre>
+      </ReactMarkdown>
 
     </article>
   );

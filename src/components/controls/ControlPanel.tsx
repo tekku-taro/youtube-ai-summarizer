@@ -32,7 +32,10 @@ export function ControlPanel({ provider, providers, model, models, thinking, sum
   return (
     <section
       className="
-        control-panel
+        grid
+        grid-cols-2
+        gap-x-4
+        gap-y-2
         space-y-3
         border-b
         p-4
