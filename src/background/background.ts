@@ -39,7 +39,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 // === 2. 💡 追加：ポップアップからのメッセージを待ち受けるリスナー ===
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'FETCH_YOUTUBE_TRANSCRIPT') {
     // 非同期処理を走らせて結果をポップアップへ返却
     executeGetTranscript(message.videoId, message.timeout)

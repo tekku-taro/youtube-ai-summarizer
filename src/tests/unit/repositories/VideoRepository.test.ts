@@ -23,6 +23,7 @@ describe('VideoRepository', () => {
     title: `Video ${id}`,
     channelId: 'RickAstleyVEVO',
     duration: 120,
+    no_transcript:false,
     summaries: [],
     chatSessions: [],
     createdAt: '2026-01-01T00:00:00.000Z',
