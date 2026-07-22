@@ -11,12 +11,31 @@ export default defineManifest({
     service_worker: 'src/background/background.ts',
     type: 'module', // TypeScript や一連の import文 を動かすため
   },  
+  content_scripts: [
+    {
+      matches: ['https://www.youtube.com/*'],
+      js: ['src/content/index.ts'], // 作成するコンテンツスクリプトのパス
+    },
+  ],  
   permissions: [
     'tabs',   // タブ情報の取得用
     'storage', // ← ストレージへのアクセス権限を追加
+    'scripting',
     "declarativeNetRequest"
   ],
   host_permissions: [
     'https://www.youtube.com/*',
+    
+    // AI サービス通信用の権限を追加
+    'https://api.openai.com/*',
+    'https://generativelanguage.googleapis.com/*',
+    'https://api.anthropic.com/*',
+    
+    // ローカルLLM（LM Studio や Ollama）等を利用する場合は HTTP / localhost も許可
+    'http://localhost/*',
+    'http://127.0.0.1/*',
+
+    // あるいは開発用途など、すべての外部ドメインを許可する場合
+    // 'https://*/*'    
   ],
 })
