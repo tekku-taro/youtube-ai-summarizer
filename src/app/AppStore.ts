@@ -17,12 +17,14 @@ export class AppStore implements IAppStore {
     settings: Settings,
     providerConfig: ProviderConfig,
     models: ModelInfo[],
+    currentVideo?: VideoData,
   ): void {
     useAppStore.getState().initialize(
       isYoutubePage,
       settings,
       providerConfig,
       models,
+      currentVideo,
     );
   }
 
@@ -75,5 +77,10 @@ export class AppStore implements IAppStore {
     useAppStore
       .getState()
       .reset();
+  }
+
+
+  public getActiveTab(): TabType {
+    return useAppStore.getState().activeTab;
   }
 }

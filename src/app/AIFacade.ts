@@ -15,11 +15,14 @@ import { ProviderFactory } from '@/providers/ProviderFactory';
 import type { ChatSession, ProviderConfig, Settings, SummaryData, VideoData } from '@/models';
 import type { ChatRequestDto, ChatResult, ModelListResult, SummaryRequestDto, SummaryResult } from '@/dto';
 import {toPlainText} from '@/utils/TranscriptUtil';
-import type { ModelInfo, ProviderType, SummaryType, TabType } from '@/value-objects';
+import { TabType, type ModelInfo, type ProviderType, type SummaryType } from '@/value-objects';
 
 import type { AppStore } from './AppStore';
 import type { ICurrentVideoService } from '@/services/ICurrentVideoService';
-import { DateUtil } from '@/utils';
+import type { VideoPlayerService } from '@/services/VideoPlayerService';
+import type { MarkdownService } from '@/services';
+import type { DownloadService } from '@/services/DownloadService';
+import type { ClipboardService } from '@/services/ClipboardService';
 
 export class AIFacade {
   private readonly settingsRepository;
@@ -28,8 +31,12 @@ export class AIFacade {
 
   private readonly promptService;
   private readonly transcriptService;
+  private readonly videoPlayerService;
   private readonly providerFactory;
 
+  private readonly markdownService: MarkdownService;
+  private readonly downloadService: DownloadService;
+  private readonly clipboardService: ClipboardService;
   // 状態管理
   private settings!: Settings;
   private providerConfig!: ProviderConfig;
@@ -49,6 +56,10 @@ export class AIFacade {
     providerFactory: ProviderFactory,
     appStore: AppStore,
     currentVideoService: ICurrentVideoService,
+    videoPlayerService: VideoPlayerService,
+    markdownService: MarkdownService,
+    downloadService: DownloadService,
+    clipboardService:ClipboardService,
   ) {
     this.settingsRepository = settingsRepository;
     this.providerRepository = providerRepository;
@@ -59,6 +70,10 @@ export class AIFacade {
     this.providerFactory = providerFactory;
     this.appStore = appStore;
     this.currentVideoService = currentVideoService;
+    this.videoPlayerService = videoPlayerService;
+    this.markdownService = markdownService;
+    this.downloadService = downloadService;  
+    this.clipboardService = clipboardService;  
   }
 
   public getSettings(): Settings {
@@ -78,13 +93,6 @@ export class AIFacade {
   }
 
   public async changeProvider(provider:ProviderType): Promise<void> {
-    const newSettings = { 
-      ...this.settings,
-      provider
-    }
-    this.settings = newSettings;
-    await this.settingsRepository.save(newSettings)
-
     const newProviderConfig = await this.providerRepository.find(
       provider,
     );
@@ -101,11 +109,20 @@ export class AIFacade {
     const newModels = modelList.models;
     this.models = newModels;
 
+    const newSettings = { 
+      ...this.settings,
+      provider,
+      model:newModels[0]?.id ?? '',
+    }
+    this.settings = newSettings;
+    await this.settingsRepository.save(newSettings)
+
     await this.appStore.initialize(
         true,
         newSettings,
         newProviderConfig,
         newModels,
+        this.currentVideo,
     );
   }
 
@@ -121,6 +138,7 @@ export class AIFacade {
         newSettings,
         this.providerConfig,
         this.models,
+        this.currentVideo,
     );
   }
 
@@ -136,6 +154,7 @@ export class AIFacade {
         newSettings,
         this.providerConfig,
         this.models,
+        this.currentVideo,
     );
   }
 
@@ -151,6 +170,7 @@ export class AIFacade {
         newSettings,
         this.providerConfig,
         this.models,
+        this.currentVideo,
     );
   }
 
@@ -193,7 +213,8 @@ export class AIFacade {
           isYoutubePage,
           this.settings,
           this.providerConfig,
-          this.models
+          this.models,
+          this.currentVideo,
       );
     }
     catch(error) {
@@ -236,6 +257,7 @@ export class AIFacade {
 
     if(video?.transcript) {
       this.currentVideo = video;
+      this.appStore.setCurrentVideo(video);
       return {
         transcript: video.transcript,
         fromCache: true,
@@ -268,7 +290,6 @@ export class AIFacade {
 
       await this.videoRepository.save(video);
       this.currentVideo = video;
-
       this.appStore.setCurrentVideo(video);
       
       return {
@@ -286,14 +307,33 @@ export class AIFacade {
           transcript: {
               language: 'unknown',
               source: 'youtube',
-              generatedAt: DateUtil.nowIso(),
+              generatedAt: '',
               segments:[],
           },
           fromCache: false,
         }
     }
+  }
 
+  public async seek(
+    seconds: number
+  ): Promise<void> {
 
+    if(!this.videoId) {
+      return;
+    }
+
+    try {
+      await this.videoPlayerService.seekTo(seconds);     
+    } catch (error) {
+      console.error('Failed to seek video:', error);
+
+        this.appStore.setError(
+            error instanceof Error
+                ? error.message
+                : 'Video seek failed.',
+        );
+    }
   }
 
   /**
@@ -302,47 +342,71 @@ export class AIFacade {
   public async summarize(
     request: SummaryRequestDto,
   ): Promise<SummaryResult> {
-    const generateService =
-      await this.createGenerateService();
+    
+      const summary: SummaryData = {
+        id: crypto.randomUUID(),
+        cacheKey: '',
+        summaryType: request.summaryType,
+        provider: this.providerConfig.provider,
+        model: request.options.model,
+        thinking: request.options.thinking,
+        content: '',
+        promptVersion: '',
+        usage: {
+          inputTokens:undefined,
+          outputTokens:undefined,
+          totalTokens:undefined,
+        },
+        createdAt: '',
+      };
 
-    const video =
-      await this.videoRepository.find(this.videoId!);
+    try {
+      this.appStore.setLoading(true);
+      const generateService =
+        await this.createGenerateService();
 
-    if (!video?.transcript) {
-      throw new Error('Transcript not found.');
+      const video =
+        await this.videoRepository.find(this.videoId!);
+
+      if (!video?.transcript) {
+        throw new Error('Transcript not found.');
+      }
+
+      const result =
+        await generateService.summarize(
+          toPlainText(video.transcript),
+          request.summaryType,
+          request.options,
+        );
+
+      summary.content = result.content;
+      summary.usage = result.usage;
+      summary.createdAt = result.generatedAt;
+
+      video.summaries.push(summary);
+      video.updatedAt = result.generatedAt;
+
+      await this.videoRepository.save(video);
+      this.currentVideo = video;
+      this.appStore.setCurrentVideo(video);
+
+      return {
+        summary,
+        fromCache: false,
+      };      
+    } catch (error) {
+        this.appStore.setError(
+            error instanceof Error
+                ? error.message
+                : 'Summarize failed.',
+        );
+      return {
+        summary,
+        fromCache: false,
+      };       
+    } finally {
+      this.appStore.setLoading(false);
     }
-
-    const result =
-      await generateService.summarize(
-        toPlainText(video.transcript),
-        request.summaryType,
-        request.options,
-      );
-
-    const summary: SummaryData = {
-      id: crypto.randomUUID(),
-      cacheKey: '',
-      summaryType: request.summaryType,
-      provider: this.providerConfig.provider,
-      model: request.options.model,
-      thinking: request.options.thinking,
-      content: result.content,
-      promptVersion: '',
-      usage: result.usage,
-      createdAt: result.generatedAt,
-    };
-
-    video.summaries.push(summary);
-    video.updatedAt = result.generatedAt;
-
-    await this.videoRepository.save(video);
-    this.currentVideo = video;
-    this.appStore.setCurrentVideo(video);
-
-    return {
-      summary,
-      fromCache: false,
-    };
   }
 
 
@@ -353,15 +417,12 @@ export class AIFacade {
    */
   public async startSession(): Promise<ChatSession> {
 
-    const video =
-      await this.videoRepository.find(this.videoId!);
-
-    if (!video) {
-      throw new Error('Video Data not found.');
+    if(!this.currentVideo) {
+      throw new Error('No current video selected.');
     }
 
     let session =
-      video.chatSessions.at(-1);
+      this.currentVideo.chatSessions.at(-1);
 
     if (session) {
       return session;
@@ -375,12 +436,11 @@ export class AIFacade {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    video.chatSessions.push(session);
-    video.updatedAt = session.updatedAt;
+    this.currentVideo.chatSessions.push(session);
+    this.currentVideo.updatedAt = session.updatedAt;
 
-    await this.videoRepository.save(video);
-    this.currentVideo = video;
-    this.appStore.setCurrentVideo(video);
+    await this.videoRepository.save(this.currentVideo);
+    this.appStore.setCurrentVideo(this.currentVideo);
 
     return session;
   }
@@ -391,57 +451,85 @@ export class AIFacade {
   public async chat(
     request: ChatRequestDto,
   ): Promise<ChatResult> {
+    try {
+      this.appStore.setLoading(true);
+      const generateService =
+        await this.createGenerateService();
 
-    const generateService =
-      await this.createGenerateService();
+      if(!this.currentVideo) {
+        throw new Error('No current video selected.');
+      }
 
-    const video =
-      await this.videoRepository.find(this.videoId!);
+      if (!this.currentVideo.transcript) {
+        throw new Error('Transcript not found.');
+      }
 
-    if (!video?.transcript) {
-      throw new Error('Transcript not found.');
-    }
+      let session =
+        this.currentVideo.chatSessions.find(s => s.id === request.chatSessionId);
 
-    let session =
-      video.chatSessions.find(s => s.id === request.chatSessionId);
+      if (!session) {
+        session = await this.startSession();
+      }
 
-    if (!session) {
-      session = await this.startSession();
-    }
+      const result =
+        await generateService.chat(
+          toPlainText(this.currentVideo.transcript),
+          session.messages,
+          request.userMessage,
+          request.options,
+        );
 
-    const result =
-      await generateService.chat(
-        toPlainText(video.transcript),
-        session.messages,
-        request.userMessage,
-        request.options,
-      );
+      console.log('chat video after generateService.chat', this.currentVideo)
+      session.messages.push({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: request.userMessage,
+        createdAt: result.generatedAt,
+      });
 
-    session.messages.push({
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: request.userMessage,
-      createdAt: result.generatedAt,
-    });
+      session.messages.push({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: result.content,
+        usage: result.usage,
+        createdAt: result.generatedAt,
+      });
 
-    session.messages.push({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: result.content,
-      usage: result.usage,
-      createdAt: result.generatedAt,
-    });
+      session.updatedAt = result.generatedAt;
+      this.currentVideo.updatedAt = result.generatedAt;
 
-    session.updatedAt = result.generatedAt;
-    video.updatedAt = result.generatedAt;
+      // console.log('chat video before save', this.currentVideo)
+      await this.videoRepository.save(this.currentVideo);
+      // console.log('chat video before currentVideo', this.currentVideo)
+      // console.log('chat video before setCurrentVideo', this.currentVideo)
+      this.appStore.setCurrentVideo(this.currentVideo);
+      // console.log('chat video after setCurrentVideo', this.currentVideo)
 
-    await this.videoRepository.save(video);
-    this.currentVideo = video;
-    this.appStore.setCurrentVideo(video);
+      console.log('chat session', session)
+      return {
+        chatSession: session,
+      };
 
-    return {
-      chatSession: session,
-    };
+    } catch (error) {
+        this.appStore.setError(
+            error instanceof Error
+                ? error.message
+                : 'Chat failed.',
+        );
+        
+        return {
+          chatSession: {
+            id: crypto.randomUUID(),
+            provider: this.settings.provider,
+            model: this.settings.model,
+            messages: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        }
+    } finally {
+      this.appStore.setLoading(false);
+    }    
   }
 
   /**
@@ -463,6 +551,127 @@ export class AIFacade {
   }
 
 
+  // --- エクスポート用機能メソッドの追加 ---
+
+  public async exportMarkdown(toClipboard = false): Promise<boolean> {
+    const activeTab = this.appStore.getActiveTab();
+
+    if(activeTab == TabType.Summary) {
+      return await this.exportSummaryMarkdown(toClipboard);
+    } else if(activeTab == TabType.Chat) {
+      return await this.exportChatMarkdown(toClipboard);
+    } else if(activeTab == TabType.Transcript) {
+      return await this.exportTranscriptMarkdown(toClipboard);
+    }
+    return false;    
+  }
+
+  /**
+   * 現在の要約結果を Markdown ファイルとしてダウンロードする。
+   */
+  public async exportSummaryMarkdown(toClipboard = false): Promise<boolean> {
+    if (!this.currentVideo) {
+      this.appStore.setError('Video data not found.');
+      return false;
+    }
+
+    // 直近（最新）の要約を取得
+    const summary = this.currentVideo.summaries.at(-1);
+    if (!summary || !summary.content) {
+      this.appStore.setError('No summary available to export.');
+      return false;
+    }
+
+    try {
+      const markdown = this.markdownService.exportSummary(this.currentVideo, summary);
+      const filename = `${this.sanitizeFilename(this.currentVideo.title || 'youtube')}_summary.md`;
+
+      if(toClipboard) {
+        return await this.clipboardService.copyText(markdown);
+      }      
+      this.downloadService.downloadTextFile(markdown, filename);
+      return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error:unknown) {
+      console.log('error', error)
+      this.appStore.setError('Failed to export summary markdown.');
+      return false;
+    }
+  }
+
+  /**
+   * 現在のトランスクリプトを Markdown ファイルとしてダウンロードする。
+   */
+  public async exportTranscriptMarkdown(toClipboard = false): Promise<boolean> {
+    if (!this.currentVideo) {
+      this.appStore.setError('Video data not found.');
+      return false;
+    }
+
+    // 直近（最新）の要約を取得
+    const transcript = this.currentVideo.transcript;
+    if (!transcript || transcript.segments.length === 0) {
+      this.appStore.setError('No transcript available to export.');
+      return false;
+    }
+
+    try {
+      const markdown = this.markdownService.exportTranscript(this.currentVideo, transcript);
+      const filename = `${this.sanitizeFilename(this.currentVideo.title || 'youtube')}_transcript.md`;
+
+      if(toClipboard) {
+        return await this.clipboardService.copyText(markdown);
+      }      
+      this.downloadService.downloadTextFile(markdown, filename);
+      return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error:unknown) {
+      this.appStore.setError('Failed to export transcript markdown.');
+      return false;
+    }
+  }
+
+  /**
+   * 現在のチャット履歴を Markdown ファイルとしてダウンロードする。
+   */
+  public async exportChatMarkdown(toClipboard = false, chatSessionId?: string): Promise<boolean> {
+    if (!this.currentVideo) {
+      this.appStore.setError('Video data not found.');
+      return false;
+    }
+
+    // 指定されたセッション、または最新のセッションを取得
+    const session = chatSessionId
+      ? this.currentVideo.chatSessions.find((s) => s.id === chatSessionId)
+      : this.currentVideo.chatSessions.at(-1);
+
+    if (!session || session.messages.length === 0) {
+      this.appStore.setError('No chat history available to export.');
+      return false;
+    }
+
+    try {
+      const markdown = this.markdownService.exportChat(this.currentVideo, session);
+      const filename = `${this.sanitizeFilename(this.currentVideo.title || 'chat')}_chat.md`;
+
+      if(toClipboard) {
+        return await this.clipboardService.copyText(markdown);
+      }
+      this.downloadService.downloadTextFile(markdown, filename);
+      return true;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error:unknown) {
+      this.appStore.setError('Failed to export chat markdown.');
+      return false;
+    }
+  }
+
+  /**
+   * ファイル名に使えない特殊文字をサニタイズ（置換）するヘルパー
+   */
+  private sanitizeFilename(title: string): string {
+    return title.replace(/[/\\?%*:|"<>]/g, '_').trim();
+  }  
 
   /**
    * GenerateServiceを生成する。

@@ -36,6 +36,7 @@ interface AppStoreActions {
     settings: Settings,
     providerConfig: ProviderConfig,
     models: ModelInfo[],
+    currentVideo?:VideoData,
   ): void;
 
   setLoading(loading: boolean): void;
@@ -68,6 +69,7 @@ export const useAppStore =
       settings,
       providerConfig,
       models,
+      currentVideo,
     ) =>
       set({
         initialized: true,
@@ -77,7 +79,7 @@ export const useAppStore =
         settings,
         providerConfig,
         models,
-        currentVideo: undefined,
+        currentVideo: currentVideo,
         activeTab: TabType.Transcript,
       }),
 
