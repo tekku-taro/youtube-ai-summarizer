@@ -5,10 +5,10 @@ import type { ProviderConfig } from '@/models/ProviderConfig';
 import type { IAIProvider } from '@/providers/IAIProvider';
 import { HttpClient } from '@/utils/HttpClient';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
-import { createGoogle, type GoogleLanguageModelOptions } from '@ai-sdk/google';
+import { createAnthropic, type AnthropicLanguageModelOptions } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 
-export class GeminiProvider implements IAIProvider {
+export class AnthropicProvider implements IAIProvider {
   private readonly httpClient = new HttpClient();
   private readonly config: ProviderConfig;
 
@@ -24,11 +24,11 @@ export class GeminiProvider implements IAIProvider {
     }
 
     
-    const google = createGoogle({
+    const anthropic = createAnthropic({
       apiKey: this.config.apiKey,
     });
 
-    return google(modelName);
+    return anthropic(modelName);
   }
 
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -42,19 +42,11 @@ export class GeminiProvider implements IAIProvider {
       model: selectedModel,
       instructions: systemMessage,
       messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
-        // thinking（Reasoning）の設定がある場合は以下のように渡せます
-        ...(request.options.thinking ? { providerOptions: { google: { 
-            thinkingConfig :{
-              thinkingLevel: "medium", // "minimal" | "low" | "medium" | "high"
-            }
-          }  satisfies GoogleLanguageModelOptions,
-        } } : { providerOptions: { google: { 
-            thinkingConfig :{
-              thinkingLevel: "low", // "minimal" | "low" | "medium" | "high"
-            }
-          }  satisfies GoogleLanguageModelOptions,        
-        }}
-      ),
+      // thinking（Reasoning）の設定がある場合は以下のように渡せます
+      ...(!request.options.thinking ? { providerOptions: { anthropic: { 
+          effort: "low"
+        }  satisfies AnthropicLanguageModelOptions,
+      } } : {}),
     });
 
     return {
@@ -75,33 +67,23 @@ export class GeminiProvider implements IAIProvider {
 
     const timeout = this.config.timeout ?? 30000;
     const result = await this.httpClient.get<{ 
-      models?: Array<{ 
-        name?: string,
-        version?: string,
-        displayName?: string,
-        description?: string,                
+      data?: Array<{ 
+        id?: string,
+        display_name?: string 
       }> 
     }>({
       method: 'GET',
       url: `${this.config.baseUrl}/models`,
-      // url: `${this.config.baseUrl}/models?key=${this.config.apiKey}`,
       headers: {
-        'x-goog-api-key': this.config.apiKey,
-        'Content-Type': 'application/json',
+        'X-Api-Key': this.config.apiKey,
       },
       timeout: timeout,
     });
-    console.log('models[0]', result.data.models?.[0]);
 
-    const models: ModelInfo[] = (result.data.models ?? []).map((model) => {
-      // name（例: 'models/gemini-2.5-flash'）から 'models/' を取り除く
-      const cleanId = model.name ? model.name.replace(/^models\//, '') : '';
-
-      return {
-        id: cleanId, // 'gemini-2.5-flash' が入る
-        name: model.displayName ?? cleanId ?? '',
-      };
-    });
+    const models: ModelInfo[] = (result.data.data ?? []).map((model) => ({
+      id: model.id ?? '',
+      name: model.display_name ?? '',
+    }));
 
     return { models };
   }

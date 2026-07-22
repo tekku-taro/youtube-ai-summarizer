@@ -5,6 +5,9 @@ import type { ProviderConfig } from '@/models/ProviderConfig';
 import type { IAIProvider } from '@/providers/IAIProvider';
 import { HttpClient } from '@/utils/HttpClient';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
+import type { OpenAILanguageModelResponsesOptions } from '@ai-sdk/openai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { generateText } from 'ai';
 
 export class LMStudioProvider implements IAIProvider {
   private readonly httpClient = new HttpClient();
@@ -14,37 +17,46 @@ export class LMStudioProvider implements IAIProvider {
     this.config = config;
   }
 
+  public getProviderModel(request: GenerateRequest) {
+    const modelName = request.options.model;
+
+    const lmstudio = createOpenAICompatible({
+      name: 'lmstudio',
+      baseURL: this.config.baseUrl ?? 'http://localhost:1234/v1',
+    });
+
+    return lmstudio(modelName);
+  }
+
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {
-    const timeout = this.config.timeout ?? 30000;
-    const result = await this.httpClient.post<{
-      choices?: Array<{ message?: { content?: string } }>;
-      usage?: {
-        prompt_tokens?: number;
-        completion_tokens?: number;
-        total_tokens?: number;
-      };
-    }>({
-      method: 'POST',
-      url: `${this.config.baseUrl}/v1/chat/completions`,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.apiKey ?? ''}`,
-      },
-      body: {
-        model: request.options.model,
-        messages: request.messages.map((message) => ({ role: message.role, content: message.content })),
-        temperature: request.options.thinking ? 0.2 : 0.7,
-      },
-      timeout: timeout,
+    const selectedModel = this.getProviderModel(request);
+    const systemMessage = request.messages.filter(m => m.role === 'system')?.reduce((acc, m) => acc + m.content, '') || 'You are a helpful assistant.';
+    const chatMessages = request.messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    const result = await generateText({
+      model: selectedModel,
+      instructions : systemMessage,
+      messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+        // thinking（Reasoning）の設定がある場合は以下のように渡せます
+        ...(request.options.thinking ? { providerOptions: { openai: { 
+          reasoningEffort: 'medium'  // 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+          }  satisfies OpenAILanguageModelResponsesOptions,
+        } } : { providerOptions: { openai: { 
+          reasoningEffort: 'none'  // 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+          }  satisfies OpenAILanguageModelResponsesOptions,        
+        }}
+      ),
     });
 
     return {
-      content: result.data.choices?.[0]?.message?.content ?? '',
-      finishReason: 'stop',
+      content: result.text,
+      finishReason: result.finishReason,
       usage: {
-        inputTokens: result.data.usage?.prompt_tokens ?? 0,
-        outputTokens: result.data.usage?.completion_tokens ?? 0,
-        totalTokens: result.data.usage?.total_tokens ?? 0,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.totalTokens,
       },
     };
   }
@@ -53,7 +65,7 @@ export class LMStudioProvider implements IAIProvider {
     const timeout = this.config.timeout ?? 30000;
     const result = await this.httpClient.get<{ data?: Array<{ id?: string; name?: string }> }>({
       method: 'GET',
-      url: `${this.config.baseUrl}/v1/models`,
+      url: `${this.config.baseUrl}/models`,
       headers: {
         Authorization: `Bearer ${this.config.apiKey ?? ''}`,
       },

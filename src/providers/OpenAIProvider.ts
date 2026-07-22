@@ -6,7 +6,7 @@ import type { IAIProvider } from '@/providers/IAIProvider';
 import { HttpClient } from '@/utils/HttpClient';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
 import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI, type OpenAILanguageModelResponsesOptions } from '@ai-sdk/openai';
 
 export class OpenAIProvider implements IAIProvider {
   private readonly httpClient = new HttpClient();
@@ -31,38 +31,26 @@ export class OpenAIProvider implements IAIProvider {
   }
 
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {
-
     const selectedModel = this.getProviderModel(request);
+    const systemMessage = request.messages.filter(m => m.role === 'system')?.reduce((acc, m) => acc + m.content, '') || 'You are a helpful assistant.';
+    const chatMessages = request.messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
     const result = await generateText({
       model: selectedModel,
-      messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
-      // thinking（Reasoning）の設定がある場合は以下のように渡せます
-      ...(request.options.thinking ? { providerOptions: { openai: { reasoningEffort: 'medium' } } } : {}),
+      instructions: systemMessage,
+      messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+        // thinking（Reasoning）の設定がある場合は以下のように渡せます
+        ...(request.options.thinking ? { providerOptions: { openai: { 
+          reasoningEffort: 'medium'  // 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+          }  satisfies OpenAILanguageModelResponsesOptions,
+        } } : { providerOptions: { openai: { 
+          reasoningEffort: 'none'  // 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+          }  satisfies OpenAILanguageModelResponsesOptions,        
+        }}
+      ),
     });
-
-    // const result = await this.httpClient.post<{
-    //   output_text?: string;
-    //   usage?: {
-    //     input_tokens?: number;
-    //     output_tokens?: number;
-    //     total_tokens?: number;
-    //   };
-    // }>({
-    //   method: 'POST',
-    //   url: `${this.config.baseUrl}/responses`,
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     Authorization: `Bearer ${this.config.apiKey ?? ''}`,
-    //   },
-    //   body: {
-    //     model: request.options.model,
-    //     input: request.messages.map((message) => ({ role: message.role, content: message.content })),
-    //     reasoning: request.options.thinking ? { effort: 'medium' } : undefined,
-    //   },
-    //   timeout: this.config.timeout,
-    // });
-
 
     return {
       content: result.text,
@@ -73,17 +61,6 @@ export class OpenAIProvider implements IAIProvider {
         totalTokens: result.usage.totalTokens,
       },
     };
-
-
-    // return {
-    //   content: result.data.output_text ?? '',
-    //   finishReason: 'stop',
-    //   usage: {
-    //     inputTokens: result.data.usage?.input_tokens ?? 0,
-    //     outputTokens: result.data.usage?.output_tokens ?? 0,
-    //     totalTokens: result.data.usage?.total_tokens ?? 0,
-    //   },
-    // };
   }
 
   public async getModels(): Promise<ModelListResult> {
@@ -92,7 +69,7 @@ export class OpenAIProvider implements IAIProvider {
     }
 
     const timeout = this.config.timeout ?? 30000;
-    const result = await this.httpClient.get<{ data?: Array<{ id?: string; name?: string }> }>({
+    const result = await this.httpClient.get<{ data?: Array<{ id?: string; created?: string, owned_by?: string, object: 'model' }> }>({
       method: 'GET',
       url: `${this.config.baseUrl}/models`,
       headers: {
@@ -100,10 +77,11 @@ export class OpenAIProvider implements IAIProvider {
       },
       timeout: timeout,
     });
+    console.log('result', result);
 
     const models: ModelInfo[] = (result.data.data ?? []).map((model) => ({
       id: model.id ?? '',
-      name: model.name ?? model.id ?? '',
+      name: model.id ?? '',
     }));
 
     return { models };
