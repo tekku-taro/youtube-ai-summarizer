@@ -16,10 +16,10 @@ export const providerOptions = [
     value: ProviderType.Gemini,
     label: 'Gemini',
   },
-  {
-    value: ProviderType.Anthropic,
-    label: 'Anthropic',
-  },
+  // {
+  //   value: ProviderType.Anthropic,
+  //   label: 'Anthropic',
+  // },
   {
     value: ProviderType.LMStudio,
     label: 'LM Studio',
