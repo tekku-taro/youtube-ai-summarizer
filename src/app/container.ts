@@ -15,6 +15,7 @@ import { VideoPlayerService } from '@/services/VideoPlayerService';
 import { MarkdownService } from '@/services';
 import { DownloadService } from '@/services/DownloadService';
 import { ClipboardService } from '@/services/ClipboardService';
+import { ProviderConfigRepository } from '@/repositories';
 
 const appStore = new AppStore();
 const client = new YouTubeTranscriptClient();
@@ -22,6 +23,7 @@ const client = new YouTubeTranscriptClient();
 export const aiFacade = new AIFacade(
   new SettingsRepository(),
   new ProviderRepository(),
+  new ProviderConfigRepository(),
   new VideoRepository(),
   new PromptService(),
   new YouTubeTranscriptService(client),

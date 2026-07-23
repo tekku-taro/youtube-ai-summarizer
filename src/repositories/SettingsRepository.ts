@@ -1,17 +1,22 @@
 import type { Settings } from '@/models/Settings';
 import { storage } from '@/repositories/storage';
+import { ProviderConfigRepository } from './ProviderConfigRepository';
 
 export class SettingsRepository {
   private readonly key = 'settings';
 
   public async find(): Promise<Settings> {
+    const providerConfigRepository = new ProviderConfigRepository();
+    
     const stored = await storage.get<Settings>(this.key);
     // console.log('SettingsRepository.find()', stored);
 
+    const availableConfig = providerConfigRepository.getAvailable();
+
     return (
       stored ?? {
-        provider: 'OpenAI',
-        model: 'gpt-4o-mini',
+        provider: availableConfig.provider,
+        model: '',
         summaryType: 'Important',
         thinking: false,
       }

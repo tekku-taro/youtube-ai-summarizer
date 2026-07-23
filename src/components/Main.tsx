@@ -7,7 +7,7 @@ import { Tabs } from '@/components/tabs/Tabs';
 import { aiFacade } from '@/app/container';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { useAppStore } from '@/stores';
-import { providerOptions, ProviderType, SummaryType, summaryTypeOptions, TabType, type TokenUsage } from '@/value-objects';
+import { ProviderType, SummaryType, summaryTypeOptions, TabType, type TokenUsage } from '@/value-objects';
 import { toPlainText } from '@/utils';
 import { ErrorHeader } from './layout/ErrorHeader';
 
@@ -21,8 +21,7 @@ export function Main() {
   const models = useAppStore(state => state.models);
   const currentVideo = useAppStore(state => state.currentVideo);
   const activeTab = useAppStore(state => state.activeTab);
-  // const activeTab = 'transcript'; // summary" | "transcript" | "chat"
-
+  const providerOptions = aiFacade.getProviderOptions();
   const summary =
     currentVideo?.summaries.at(-1);
   const transcript =

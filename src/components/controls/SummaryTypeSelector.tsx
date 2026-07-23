@@ -27,7 +27,7 @@ export function SummaryTypeSelector({ value, options, disabled, onChange }: Summ
         }}
       >
         <SelectTrigger size="sm" className="w-[240px]">
-          <SelectValue placeholder="Select model" />
+          <SelectValue placeholder="Select Summary Type" />
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>

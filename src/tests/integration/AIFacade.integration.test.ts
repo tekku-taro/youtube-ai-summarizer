@@ -24,6 +24,7 @@ import type { IVideoPlayerService } from '@/services/IVideoPlayerService';
 import { MarkdownService } from '@/services';
 import { DownloadService } from '@/services/DownloadService';
 import { ClipboardService } from '@/services/ClipboardService';
+import { ProviderConfigRepository } from '@/repositories';
 
 // --- 1. インメモリ Fake Chrome Storage のセットアップ ---
 function setupFakeChromeStorage() {
@@ -139,6 +140,7 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
     facade = new AIFacade(
       settingsRepo,
       providerRepo,
+      new ProviderConfigRepository,
       videoRepo,
       mockPromptService,
       mockTranscriptService,

@@ -23,10 +23,13 @@ import type { VideoPlayerService } from '@/services/VideoPlayerService';
 import type { MarkdownService } from '@/services';
 import type { DownloadService } from '@/services/DownloadService';
 import type { ClipboardService } from '@/services/ClipboardService';
+import type { ProviderConfigRepository } from '@/repositories';
+import type { SelectOption } from '@/components/controls/types';
 
 export class AIFacade {
   private readonly settingsRepository;
   private readonly providerRepository;
+  private readonly providerConfigRepository;
   private readonly videoRepository;
 
   private readonly promptService;
@@ -50,6 +53,7 @@ export class AIFacade {
   constructor(
     settingsRepository: SettingsRepository,
     providerRepository: ProviderRepository,
+    providerConfigRepository: ProviderConfigRepository,
     videoRepository: VideoRepository,
     promptService: IPromptService,
     transcriptService: IYouTubeTranscriptService,
@@ -63,6 +67,7 @@ export class AIFacade {
   ) {
     this.settingsRepository = settingsRepository;
     this.providerRepository = providerRepository;
+    this.providerConfigRepository = providerConfigRepository;
     this.videoRepository = videoRepository;
 
     this.promptService = promptService;
@@ -82,6 +87,10 @@ export class AIFacade {
 
   public getProviderConfig(): ProviderConfig {
     return this.providerConfig;
+  }
+
+  public getProviderOptions(): SelectOption<ProviderType>[] {
+    return this.providerConfigRepository.getProviderOptions();
   }
 
   public getModelsCache(): ModelInfo[] {
