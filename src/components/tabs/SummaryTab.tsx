@@ -1,12 +1,16 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { markdownComponents } from '../common/markdownComponents';
+import { Loading } from '../common/Loading';
 
 export interface SummaryTabProps {
   markdown: string;
+  loading: boolean;
 }
 
 export function SummaryTab({
   markdown,
+  loading,
 }: SummaryTabProps) {
   return (
     <article
@@ -18,9 +22,16 @@ export function SummaryTab({
       "
     >
 
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {markdown}
-      </ReactMarkdown>
+      {loading ? (        
+        <Loading message='AIが要約を生成中...' loading={loading} />  
+      ):(
+        <ReactMarkdown
+          components={markdownComponents}
+          remarkPlugins={[remarkGfm]}
+        >
+          {markdown}
+        </ReactMarkdown>
+      )}
 
     </article>
   );
