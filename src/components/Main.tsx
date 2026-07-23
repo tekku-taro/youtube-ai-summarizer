@@ -9,6 +9,7 @@ import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { useAppStore } from '@/stores';
 import { providerOptions, ProviderType, SummaryType, summaryTypeOptions, TabType, type TokenUsage } from '@/value-objects';
 import { toPlainText } from '@/utils';
+import { ErrorHeader } from './layout/ErrorHeader';
 
 export function Main() {
   const initialized = useAppStore(state => state.initialized);
@@ -59,10 +60,18 @@ export function Main() {
 
   if (!initialized || !settings) {
     return (
-      <LoadingOverlay
-        loading={loading}
-        message="初期化中..."
-      />
+      <>
+        {loading ? (
+          <LoadingOverlay
+            loading={loading}
+            message="初期化中..."
+          />
+        ):(
+          <ErrorHeader 
+            error={error}
+          />          
+        )}
+      </>
     );
   }
 

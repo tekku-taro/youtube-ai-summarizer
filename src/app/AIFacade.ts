@@ -93,37 +93,48 @@ export class AIFacade {
   }
 
   public async changeProvider(provider:ProviderType): Promise<void> {
-    const newProviderConfig = await this.providerRepository.find(
-      provider,
-    );
-    this.providerConfig = newProviderConfig;
+    try{
+      const newProviderConfig = await this.providerRepository.find(
+        provider,
+      );
+      this.providerConfig = newProviderConfig;
 
-    const aiProvider =
-      this.providerFactory.create(
-        newProviderConfig,
+      const aiProvider =
+        this.providerFactory.create(
+          newProviderConfig,
+        );
+
+      const modelList =
+        await aiProvider.getModels();
+
+      const newModels = modelList.models;
+      this.models = newModels;
+
+      const newSettings = { 
+        ...this.settings,
+        provider,
+        model:newModels[0]?.id ?? '',
+      }
+      this.settings = newSettings;
+      await this.settingsRepository.save(newSettings)
+
+      await this.appStore.initialize(
+          true,
+          newSettings,
+          newProviderConfig,
+          newModels,
+          this.currentVideo,
       );
 
-    const modelList =
-      await aiProvider.getModels();
-
-    const newModels = modelList.models;
-    this.models = newModels;
-
-    const newSettings = { 
-      ...this.settings,
-      provider,
-      model:newModels[0]?.id ?? '',
+    } catch(error) {
+        console.log('changeProvider failed:', error)
+        this.appStore.setError(
+            error instanceof Error
+                ? 'changeProvider failed. ' + error.message
+                : 'changeProvider failed.',
+        );
     }
-    this.settings = newSettings;
-    await this.settingsRepository.save(newSettings)
 
-    await this.appStore.initialize(
-        true,
-        newSettings,
-        newProviderConfig,
-        newModels,
-        this.currentVideo,
-    );
   }
 
   public async changeModel(model:string):Promise<void> {
@@ -218,9 +229,10 @@ export class AIFacade {
       );
     }
     catch(error) {
+        console.log('initialization failed:', error)
         this.appStore.setError(
             error instanceof Error
-                ? error.message
+                ? 'Initialization failed. ' + error.message
                 : 'Initialization failed.',
         );
     } finally {
