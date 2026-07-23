@@ -2,10 +2,16 @@ import { defineManifest } from '@crxjs/vite-plugin'
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'CRXJS from scratch',
+  name: 'Youtube AI summarizer',
   version: '1.0.0',
   action: {
     default_popup: 'src/index.html',
+    default_icon: {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }    
   },
   background: {
     service_worker: 'src/background/background.ts',
@@ -38,4 +44,10 @@ export default defineManifest({
     // あるいは開発用途など、すべての外部ドメインを許可する場合
     // 'https://*/*'    
   ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }  
 })
