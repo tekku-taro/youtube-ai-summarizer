@@ -9,8 +9,7 @@ export class SettingsRepository {
     const providerConfigRepository = new ProviderConfigRepository();
     
     const stored = await storage.get<Settings>(this.key);
-    // console.log('SettingsRepository.find()', stored);
-
+    
     const availableConfig = providerConfigRepository.getAvailable();
 
     return (

@@ -65,9 +65,8 @@ export class ProviderConfigRepository {
     const availableKey:ProviderType|undefined = Object.entries(this.configs).find(
       ([key, config]) =>
         (key === ProviderType.LMStudio && config?.baseUrl) ||
-        (!config?.apiKey && config?.baseUrl),
+        (config?.apiKey && config?.baseUrl),
     )?.[0] as ProviderType;
-
     if (!availableKey) {
       throw new Error('No provider configurations found');
     }

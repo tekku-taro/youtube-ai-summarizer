@@ -28,4 +28,8 @@ export class ProviderRepository {
     const next = { ...(stored ?? {}), [config.provider]: config };
     await storage.set(this.namespace, next);
   }
+
+  public async reset() {
+    storage.remove(this.namespace);
+  }
 }

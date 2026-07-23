@@ -10,6 +10,7 @@ import { useAppStore } from '@/stores';
 import { ProviderType, SummaryType, summaryTypeOptions, TabType, type TokenUsage } from '@/value-objects';
 import { toPlainText } from '@/utils';
 import { ErrorHeader } from './layout/ErrorHeader';
+import { ErrorControlPanel } from './controls/ErrorControlPanel';
 
 export function Main() {
   const initialized = useAppStore(state => state.initialized);
@@ -57,6 +58,10 @@ export function Main() {
     return total;
   }, [chatSession, currentVideo])
 
+  const handleResetSettings = () => {
+    aiFacade.resetSettings();
+  }
+
   if (!initialized || !settings) {
     return (
       <>
@@ -66,9 +71,14 @@ export function Main() {
             message="初期化中..."
           />
         ):(
-          <ErrorHeader 
-            error={error}
-          />          
+          <>
+            <ErrorHeader 
+              error={error}
+            />
+            <ErrorControlPanel
+              onResetSettings={handleResetSettings}
+            />
+          </>
         )}
       </>
     );

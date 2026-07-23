@@ -85,6 +85,14 @@ export class AIFacade {
     return this.settings;
   }
 
+  public async resetSettings() {
+      await this.settingsRepository.reset();
+      await this.appStore.reset();
+      await this.providerRepository.reset();
+
+      this.initialize();
+  }
+
   public getProviderConfig(): ProviderConfig {
     return this.providerConfig;
   }
@@ -209,7 +217,6 @@ export class AIFacade {
           await this.currentVideoService
               .getCurrentVideoId();
       if(res === false) {
-        //  throw new Error('Current tab URL not found.');
         isYoutubePage = false;
       }
       this.videoId = res as string;
@@ -228,6 +235,10 @@ export class AIFacade {
         await aiProvider.getModels();
 
       this.models = modelList.models;
+
+      if(this.settings.model == '') {
+        this.settings.model = this.models[0]?.id ?? '';
+      }
 
       this.appStore.initialize(
           isYoutubePage,

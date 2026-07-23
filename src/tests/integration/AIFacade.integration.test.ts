@@ -204,19 +204,19 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
         }),
       };
 
-      const mockAnthropicProvider = {
+      const mockGeminiProvider = {
         getModels: vi.fn().mockResolvedValue({
           models: [
-            { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' },
-            { id: 'claude-sonnet-3-5-20241022', name: 'Claude Sonnet 3.5' },
+            { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+            { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
           ],
         }),
       };
 
       // ProviderConfig の provider 名によって返す AIProvider を切り替える
       vi.mocked(mockProviderFactory.create).mockImplementation((config: ProviderConfig) => {
-        if (config.provider === 'Anthropic') {
-          return mockAnthropicProvider as any;
+        if (config.provider === 'Gemini') {
+          return mockGeminiProvider as any;
         }
         return mockOpenAIProvider as any;
       });

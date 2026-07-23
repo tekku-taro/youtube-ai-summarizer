@@ -40,7 +40,7 @@ describe('AnthropicProvider (実通信テスト)', () => {
       const request: GenerateRequest = {
         messages: [{ role: 'user', content: 'Hello' }],
         options: { 
-          provider: 'Anthropic',
+          provider: 'Gemini',
           model: targetModel, 
           thinking: false 
 
