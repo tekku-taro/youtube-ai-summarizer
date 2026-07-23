@@ -1,13 +1,18 @@
+import { formatTime } from '@/lib/utils';
 import type { TranscriptData } from '@/models';
+import { Button } from '../ui/button';
+import { Loading } from '../common/Loading';
 
 export interface TranscriptTabProps {
   transcript?: TranscriptData | undefined;
+  loading: boolean;
 
   onSeek?(seconds: number): void;
 }
 
 export function TranscriptTab({
   transcript,
+  loading,
   onSeek,
 }: TranscriptTabProps) {
   return (
@@ -20,25 +25,33 @@ export function TranscriptTab({
       "    
     >
 
-      {transcript && transcript.segments.map(segment => (
-        <article
-          key={segment.startSeconds}
-          className="segment"
-        >
-          <button
-            type="button"
-            onClick={() => onSeek?.(segment.startSeconds)}
-          >
-            {segment.startSeconds.toFixed(2)}s - {segment.endSeconds.toFixed(2)}s
-          </button>
+      {loading && !transcript ? (
+        <Loading message='動画のトランスクリプトを取得中' loading={loading} />       
+      ):(
+        <>
+          {transcript && transcript.segments.map(segment => (
+            <article
+              key={segment.startSeconds}
+              className="segment"
+            >
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onSeek?.(segment.startSeconds)}
+              >
+                {formatTime(segment.startSeconds)}
+              </Button>
+    
+              <p>
+                {segment.text}
+              </p>
+    
+              <hr />
+            </article>
+          ))}
+        </>
+      )}
 
-          <p>
-            {segment.text}
-          </p>
-
-          <hr />
-        </article>
-      ))}
 
     </section>
   );
