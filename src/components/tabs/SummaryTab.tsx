@@ -15,7 +15,8 @@ export function SummaryTab({
   return (
     <article
       className="
-        h-[230px]
+        h-[220px]
+        sm:h-[300px]
         overflow-y-auto
         p-4
         max-w-full
