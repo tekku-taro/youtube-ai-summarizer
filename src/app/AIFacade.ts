@@ -377,6 +377,7 @@ export class AIFacade {
 
     try {
       this.appStore.setLoading(true, TabType.Summary);
+      this.appStore.setActiveTab(TabType.Summary);
       const generateService =
         await this.createGenerateService();
 
