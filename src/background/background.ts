@@ -1,6 +1,10 @@
 import { executeGetTranscript } from "./tasks/executeGetTranscript";
 
-// background.ts
+// アイコンクリック時にサイドパネルを開く設定
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
+
 chrome.runtime.onInstalled.addListener(async () => {
   const RULES = [
     {

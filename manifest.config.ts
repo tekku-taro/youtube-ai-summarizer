@@ -4,8 +4,11 @@ export default defineManifest({
   manifest_version: 3,
   name: 'Youtube AI summarizer',
   version: '1.0.0',
+  side_panel: {
+    default_path: 'src/index.html', // ポップアップと同じHTMLを指定
+  },  
   action: {
-    default_popup: 'src/index.html',
+    // default_popup: 'src/index.html',
     default_icon: {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -27,7 +30,8 @@ export default defineManifest({
     'tabs',   // タブ情報の取得用
     'storage', // ← ストレージへのアクセス権限を追加
     'scripting',
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    'sidePanel',
   ],
   host_permissions: [
     'https://www.youtube.com/*',
