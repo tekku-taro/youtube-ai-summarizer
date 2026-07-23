@@ -54,10 +54,11 @@ export class AppStore implements IAppStore {
 
   public setLoading(
     loading: boolean,
+    loadingTab?: TabType|null,
   ): void {
     useAppStore
       .getState()
-      .setLoading(loading);
+      .setLoading(loading, loadingTab);
   }
 
   public setError(

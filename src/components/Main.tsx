@@ -15,6 +15,7 @@ export function Main() {
   const error = useAppStore(state => state.error);
   const isYoutubePage = useAppStore(state => state.isYoutubePage);
   const loading = useAppStore(s => s.loading);
+  const loadingTab = useAppStore(s => s.loadingTab);
   const settings = useAppStore(state => state.settings)!;
   const models = useAppStore(state => state.models);
   const currentVideo = useAppStore(state => state.currentVideo);
@@ -185,6 +186,7 @@ export function Main() {
               summaryTypes={summaryTypeOptions}
 
               loading={loading}
+              loadingTab={loadingTab}
 
               onProviderChange={handleProviderChange}
               onModelChange={handleModelChange}
@@ -219,6 +221,7 @@ export function Main() {
             <Tabs
                 activeTab={activeTab}
                 loading={loading}
+                loadingTab={loadingTab}
                 summaryMarkdown={
                     summary?.content ?? ''
                 }
@@ -241,8 +244,6 @@ export function Main() {
         </>
 
       )}
-
-      <LoadingOverlay loading={loading} />
     </div>
   );
 }

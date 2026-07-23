@@ -16,6 +16,8 @@ interface AppStoreState {
 
   loading: boolean;
 
+  loadingTab?: TabType|null|undefined;
+
   error?: string|undefined;
 
   settings?: Settings|undefined;
@@ -39,7 +41,7 @@ interface AppStoreActions {
     currentVideo?:VideoData,
   ): void;
 
-  setLoading(loading: boolean): void;
+  setLoading(loading: boolean, loadingTab?: TabType|null): void;
 
   setError(error?: string): void;
 
@@ -83,9 +85,10 @@ export const useAppStore =
         activeTab: TabType.Transcript,
       }),
 
-    setLoading: (loading) =>
+    setLoading: (loading, loadingTab?: TabType|null) =>
       set({
         loading,
+        loadingTab: loadingTab,
       }),
 
     setError: (error) =>
@@ -119,6 +122,7 @@ export const useAppStore =
         initialized: false,
         isYoutubePage:false,
         loading: false,
+        loadingTab: null,
         error: undefined,
         settings: undefined,
         currentVideo: undefined,

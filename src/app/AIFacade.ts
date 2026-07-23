@@ -224,7 +224,7 @@ export class AIFacade {
                 : 'Initialization failed.',
         );
     } finally {
-      this.appStore.setLoading(false);
+      this.appStore.setLoading(false, null);
     }
 
     return {
@@ -241,30 +241,31 @@ export class AIFacade {
   public async getTranscript(
   ): Promise<TranscriptResult> {
 
-    if(!this.videoId) {
-      return { transcript: {
-          language: '',
-          source: '',
-          generatedAt: '',
-          segments: []
-        }, 
-        fromCache: false 
-      };
-    }
-
-    let video =
-      await this.videoRepository.find(this.videoId!);
-
-    if(video?.transcript) {
-      this.currentVideo = video;
-      this.appStore.setCurrentVideo(video);
-      return {
-        transcript: video.transcript,
-        fromCache: true,
-      };
-    }
-
+    
     try {
+      this.appStore.setLoading(true, TabType.Transcript);
+      if(!this.videoId) {
+        return { transcript: {
+            language: '',
+            source: '',
+            generatedAt: '',
+            segments: []
+          }, 
+          fromCache: false 
+        };
+      }
+  
+      let video =
+        await this.videoRepository.find(this.videoId!);
+  
+      if(video?.transcript) {
+        this.currentVideo = video;
+        this.appStore.setCurrentVideo(video);
+        return {
+          transcript: video.transcript,
+          fromCache: true,
+        };
+      }
       const response =
         await this.transcriptService.getTranscript(this.videoId!);
 
@@ -312,6 +313,8 @@ export class AIFacade {
           },
           fromCache: false,
         }
+    } finally {      
+      this.appStore.setLoading(false, null);
     }
   }
 
@@ -361,7 +364,7 @@ export class AIFacade {
       };
 
     try {
-      this.appStore.setLoading(true);
+      this.appStore.setLoading(true, TabType.Summary);
       const generateService =
         await this.createGenerateService();
 
@@ -405,7 +408,7 @@ export class AIFacade {
         fromCache: false,
       };       
     } finally {
-      this.appStore.setLoading(false);
+      this.appStore.setLoading(false, null);
     }
   }
 
@@ -452,7 +455,7 @@ export class AIFacade {
     request: ChatRequestDto,
   ): Promise<ChatResult> {
     try {
-      this.appStore.setLoading(true);
+      this.appStore.setLoading(true, TabType.Chat);
       const generateService =
         await this.createGenerateService();
 
@@ -470,6 +473,13 @@ export class AIFacade {
       if (!session) {
         session = await this.startSession();
       }
+      const requestTimeStamp = new Date().toISOString();
+      session.messages.push({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: request.userMessage,
+        createdAt: requestTimeStamp,
+      });
 
       const result =
         await generateService.chat(
@@ -480,12 +490,7 @@ export class AIFacade {
         );
 
       console.log('chat video after generateService.chat', this.currentVideo)
-      session.messages.push({
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: request.userMessage,
-        createdAt: result.generatedAt,
-      });
+
 
       session.messages.push({
         id: crypto.randomUUID(),
@@ -528,7 +533,7 @@ export class AIFacade {
           }
         }
     } finally {
-      this.appStore.setLoading(false);
+      this.appStore.setLoading(false, null);
     }    
   }
 

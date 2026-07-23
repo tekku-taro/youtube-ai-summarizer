@@ -8,6 +8,7 @@ import { Tabs as ShadnuiTabs, TabsContent, TabsList, TabsTrigger } from "@/compo
 export interface TabsProps {
     activeTab: TabType;
     loading:boolean;
+    loadingTab: TabType|null|undefined;
     summaryMarkdown: string;
     transcript?: TranscriptData|undefined;
     chatSession?: ChatSession|undefined;
@@ -21,6 +22,7 @@ export interface TabsProps {
 export function Tabs({
   activeTab,
   loading,
+  loadingTab,
   summaryMarkdown,
   transcript,
   chatSession,
@@ -52,13 +54,13 @@ export function Tabs({
         >チャット</TabsTrigger>
       </TabsList>
       <TabsContent value={TabType.Summary}>
-          <SummaryTab markdown={summaryMarkdown} />
+          <SummaryTab markdown={summaryMarkdown} loading={loading && loadingTab === TabType.Summary} />
       </TabsContent>
       <TabsContent value={TabType.Transcript}>
-          <TranscriptTab transcript={transcript} onSeek={onSeek} />
+          <TranscriptTab transcript={transcript} onSeek={onSeek} loading={loading && loadingTab === TabType.Transcript} />
       </TabsContent>
       <TabsContent value={TabType.Chat}>
-          <ChatTab session={chatSession} onSend={onSendChat} loading={loading}  />
+          <ChatTab session={chatSession} onSend={onSendChat} loading={loading && loadingTab === TabType.Chat}  />
       </TabsContent>
     </ShadnuiTabs>
     </section>

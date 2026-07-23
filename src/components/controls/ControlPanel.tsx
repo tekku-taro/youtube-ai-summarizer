@@ -3,7 +3,7 @@ import { ModelSelector } from './ModelSelector';
 import { ThinkingSwitch } from './ThinkingSwitch';
 import { SummaryTypeSelector } from './SummaryTypeSelector';
 import { SummaryButton } from './SummaryButton';
-import type { ProviderType, SummaryType } from '@/value-objects';
+import type { ProviderType, SummaryType, TabType } from '@/value-objects';
 import type { SelectOption } from './types';
 
 export interface ControlPanelProps {
@@ -19,6 +19,7 @@ export interface ControlPanelProps {
   summaryTypes: SelectOption<SummaryType>[];
 
   loading?: boolean;
+  loadingTab?:TabType|null|undefined;
 
   onProviderChange(provider: ProviderType): void;
   onModelChange(model: string): void;
@@ -28,7 +29,7 @@ export interface ControlPanelProps {
   onSummarize(): void;
 }
 
-export function ControlPanel({ provider, providers, model, models, thinking, summaryType, summaryTypes, loading, onProviderChange, onModelChange, onThinkingChange, onSummaryTypeChange, onSummarize }: ControlPanelProps) {
+export function ControlPanel({ provider, providers, model, models, thinking, summaryType, summaryTypes, loading, loadingTab, onProviderChange, onModelChange, onThinkingChange, onSummaryTypeChange, onSummarize }: ControlPanelProps) {
   return (
     <section
       className="
@@ -71,6 +72,7 @@ export function ControlPanel({ provider, providers, model, models, thinking, sum
 
       <SummaryButton 
         loading={loading ?? false}
+        loadingTab={loadingTab}
         disabled={loading ?? false}
         onClick={onSummarize}
       />

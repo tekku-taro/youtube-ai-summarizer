@@ -20,7 +20,7 @@ export interface IAppStore {
 
   setActiveTab(tab: TabType): void;
 
-  setLoading(loading: boolean): void;
+  setLoading(loading: boolean, loadingTab?: TabType|null): void;
 
   setError(error?: string): void;
 
