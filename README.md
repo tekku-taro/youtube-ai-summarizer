@@ -83,6 +83,38 @@ YouTube 動画のトランスクリプト（字幕データ）を自動取得し
 
 ***
 
+---
+
+## API キーの取得
+
+利用したい AI プロバイダーに応じて、あらかじめ API キーを取得してください（ローカル LLM の LM Studio のみを使用する場合は API キーの取得は不要です）。
+
+- **OpenAI API Key**:
+  1. [OpenAI API Platform](https://platform.openai.com/) にログイン。
+  2. 左メニューの **API Keys** から `Create new secret key` をクリックして生成します。
+- **Google Gemini API Key**:
+  1. [Google AI Studio](https://aistudio.google.com/) にログイン。
+  2. **API キー** 画面で `API キーを作成` をクリックし、新しい API キーを生成します。
+
+---
+
+## 環境変数（.env）の設定
+
+プロジェクトルートに `.env` ファイルを作成し、取得した API キーを設定してください。
+
+```env
+# OpenAI
+VITE_OPENAI_API_KEY=your_openai_api_key_here
+VITE_OPENAI_BASE_URL=https://api.openai.com/v1
+
+# Gemini
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+
+# LM Studio (ローカル環境で動作させる場合)
+VITE_LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
+```
+
 ## インストール手順
 
 ### 開発環境でのビルド
@@ -90,21 +122,24 @@ YouTube 動画のトランスクリプト（字幕データ）を自動取得し
 1. **リポジトリのクローン**
 
 ```bash
-git clone [https://github.com/tekku-taro/youtube-ai-summarizer.git](https://github.com/tekku-taro/youtube-ai-summarizer.git)
+git clone https://github.com/tekku-taro/youtube-ai-summarizer.git
 cd youtube-ai-summarizer
 ```
 
 2. **依存パッケージのインストール**
 ```bash
 npm install
-
 ````
 
-3. **ビルドの実行**
+3. **環境変数（.env）の作成**
+```
+# 上述の 環境変数（.env）の設定 を参考に .env ファイルを作成し、API キーを入力します。
+```
+
+4. **ビルドの実行**
 
 ```bash
 npm run build
-
 ```
 
 ※ プロジェクト直下に `dist` ディレクトリが生成されます。
