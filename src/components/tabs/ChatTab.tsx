@@ -43,7 +43,7 @@ export function ChatTab({
 
   console.log('ChatTab session', session);
   return (
-    <section className="flex max-h-[230px] flex-col">
+    <section className="flex h-[220px] sm:h-[300px] flex-col">
       <div 
         className="grow space-y-4  overflow-y-auto p-4"
       >

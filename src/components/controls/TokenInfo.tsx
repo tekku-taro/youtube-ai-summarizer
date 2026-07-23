@@ -10,7 +10,6 @@ export function TokenInfo({ inputTokens, outputTokens, totalTokens, characterCou
   return (
     <section
       className="
-        token-info
         flex
         justify-between
         border-b

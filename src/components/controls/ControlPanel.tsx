@@ -34,12 +34,12 @@ export function ControlPanel({ provider, providers, model, models, thinking, sum
     <section
       className="
         grid
-        grid-cols-2
-        gap-x-4
-        gap-y-2
-        space-y-3
+        grid-cols-1
+        sm:grid-cols-2
+        gap-x-2
+        gap-y-3
         border-b
-        p-4
+        p-3
       "
     >
 

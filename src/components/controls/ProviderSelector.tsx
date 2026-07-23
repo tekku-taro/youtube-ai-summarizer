@@ -34,7 +34,7 @@ export function ProviderSelector({ value, options, disabled, onChange }: Provide
           onChange(v as ProviderType);
         }}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger size="sm" className="w-[180px]">
           <SelectValue placeholder="Provider Type" />
         </SelectTrigger>
         <SelectContent>

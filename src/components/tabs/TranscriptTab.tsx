@@ -18,7 +18,8 @@ export function TranscriptTab({
   return (
     <section 
       className="
-        h-[230px]
+        h-[220px]
+        sm:h-[300px]
         overflow-y-scroll
         p-4
         space-y-4

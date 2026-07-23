@@ -169,10 +169,9 @@ export function Main() {
   return (
     <div
       className="
-        h-[600px]       /* ポップアップの最大高さを指定 */
         flex
         flex-col
-        overflow-hidden /* 外側のスクロールバーを抑止 */
+        overflow-hidden
       "    
     >
       <Header 
