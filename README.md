@@ -71,13 +71,13 @@ YouTube 動画のトランスクリプト（字幕データ）を自動取得し
 
 * **ビルドツール / プラグイン**: [Vite](https://vitejs.dev/), [@crxjs/vite-plugin](https://crxjs.dev/vite-plugin)
 
-* **UI  / スタイリング**: [React 18](https://react.dev/), [TypeScript](https://www.typescript.org/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
+* **UI  / スタイリング**: [React 18](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
 
 * **マークダウンレンダリング**: [react-markdown](https://github.com/remarkjs/react-markdown), [remark-gfm](https://github.com/remarkjs/remark-gfm)
 
 * **アイコン**: [Lucide React](https://lucide.dev/)
 
-* **AI / API 連係**: [Vercel AI SDK](https://sdk.vercel.ai/docs), [youtube-transcript-plus](https://github.com/NicoLasselle/youtube-transcript-plus)
+* **AI / API 連係**: [Vercel AI SDK](https://sdk.vercel.ai/docs), [youtube-transcript-plus](https://github.com/ericmmartin/youtube-transcript-plus)
 
 * **状態管理**: [Zustand](https://github.com/pmndrs/zustand)
 
