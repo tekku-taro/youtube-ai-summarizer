@@ -82,7 +82,7 @@ export const useAppStore =
         providerConfig,
         models,
         currentVideo: currentVideo,
-        activeTab: TabType.Transcript,
+        activeTab: get().activeTab ?? TabType.Transcript,
       }),
 
     setLoading: (loading, loadingTab?: TabType|null) =>
