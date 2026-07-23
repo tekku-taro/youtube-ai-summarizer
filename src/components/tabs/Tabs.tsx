@@ -38,19 +38,20 @@ export function Tabs({
         px-4
       "    
     >
-    <ShadnuiTabs defaultValue={activeTab} className="w-full">
+    <ShadnuiTabs 
+      value={activeTab} 
+      onValueChange={(val) => onTabChange(val as TabType)}
+      className="w-full"
+    >
       <TabsList>
         <TabsTrigger 
-          value={TabType.Summary}
-          onClick={() => onTabChange(TabType.Summary)}        
+          value={TabType.Summary}      
         >要約</TabsTrigger>
         <TabsTrigger 
-          value={TabType.Transcript}
-          onClick={() => onTabChange(TabType.Transcript)}        
+          value={TabType.Transcript}        
         >トランスクリプト</TabsTrigger>
         <TabsTrigger 
-          value={TabType.Chat}
-          onClick={() => onTabChange(TabType.Chat)}        
+          value={TabType.Chat}    
         >チャット</TabsTrigger>
       </TabsList>
       <TabsContent value={TabType.Summary}>
