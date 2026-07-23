@@ -3,6 +3,7 @@ import { fetchTranscript, InMemoryCache, YoutubeTranscriptDisabledError, Youtube
 import { DateUtil } from '@/utils/DateUtil';
 import type { TranscriptSegment } from '@/value-objects';
 import type { YouTubeTranscriptResponse } from '@/providers/transcript/YouTubeTranscriptClient';
+import { mergeTranscriptSegments } from './mergeTranscriptSegments';
 
 // 通信処理ロジックを background 側に持たせる（元の Client の中身をここに移植、または別クラスとして呼ぶ）
 export async function executeGetTranscript(videoId: string, timeout:number = 15000): Promise<YouTubeTranscriptResponse> {
@@ -19,7 +20,7 @@ export async function executeGetTranscript(videoId: string, timeout:number = 150
         });
       
   
-      const segments: TranscriptSegment[] =
+      const rawSegments: TranscriptSegment[] =
         response.segments.map(item => {
           return {
             startSeconds: item.offset,
@@ -28,12 +29,18 @@ export async function executeGetTranscript(videoId: string, timeout:number = 150
           }
         });
   
+      const mergedSegments = mergeTranscriptSegments(rawSegments, {
+        minGroupDurationSec: 10, // 最低10秒分はまとめる
+        maxGroupDurationSec: 20, // 最大20秒で区切る
+        maxCharLength: 150, // 最大文字数を150文字以内にする
+      });
+
       return {
         transcript: {
           language: response.segments[0]?.lang ?? 'unknown',
           source: 'youtube',
           generatedAt: DateUtil.nowIso(),
-          segments,
+          segments:mergedSegments,
         },
         title: response.videoDetails?.title ?? 'Unknown video',
         channelId: response.videoDetails?.channelId ?? 'unknown',
