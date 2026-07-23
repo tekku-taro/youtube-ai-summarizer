@@ -1,7 +1,8 @@
 import type { ChatSession } from '@/models';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { markdownComponents } from '../common/markdownComponents';
 // import { Button } from '../ui/button';
 
 export interface ChatTabProps {
@@ -16,6 +17,17 @@ export function ChatTab({
   onSend,
 }: ChatTabProps) {
   const [message, setMessage] = useState('');
+  const [userTempMessage, setUserTempMessage] = useState('');
+  const targetMessageRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    targetMessageRef.current?.scrollIntoView({
+      behavior: 'smooth', // なめらかにスクロール（即時移動したい場合は 'auto'）
+      block: 'start',     // 該当要素の「上端」がコンテナ内に表示される位置へ
+    });
+  }, [session?.messages, loading]);
+
+  const messages = session?.messages ?? [];
 
   const handleSend = () => {
     const text = message.trim();
@@ -25,27 +37,75 @@ export function ChatTab({
     }
 
     onSend(text);
+    setUserTempMessage(text);
     setMessage('');
   };
 
   console.log('ChatTab session', session);
   return (
     <section className="flex max-h-[230px] flex-col">
-      <div className="grow space-y-4  overflow-y-auto p-4">
-        {session?.messages.map(chat => (
+      <div 
+        className="grow space-y-4  overflow-y-auto p-4"
+      >
+        {messages.map((chat, index) => {
+          // loading 中ではなく、かつ「最後のメッセージ」である場合に Ref を付与
+          const isLastMessage = !loading && index === messages.length - 1;
+
+          return (
           <article
             key={chat.id}
+            ref={isLastMessage ? targetMessageRef : null}
             className="rounded border p-3"
           >
             <div className="mb-2 text-sm font-semibold">
               {chat.role === 'user' ? 'あなた' : 'AI'}
             </div>
 
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown            
+              components={markdownComponents}
+              remarkPlugins={[remarkGfm]}
+            >
               {chat.content}
             </ReactMarkdown>
           </article>
-        ))}
+          );
+        })}
+        {loading && (
+          <>
+            <article
+              ref={targetMessageRef}
+              className="rounded border p-3"
+            >
+              <div className="mb-2 text-sm font-semibold">
+                あなた
+              </div>
+
+              <ReactMarkdown            
+                components={markdownComponents}
+                remarkPlugins={[remarkGfm]}
+              >
+                {userTempMessage}
+              </ReactMarkdown>
+            </article>
+
+            <article
+              className="rounded border p-3"
+            >
+              <div className="mb-2 text-sm font-semibold">
+                AI
+              </div>
+              <div className="flex gap-1">
+                {[0, 150, 300].map(delay => (
+                  <span
+                    key={delay}
+                    className="h-1 w-1 rounded-full bg-gray-700 animate-typing"
+                    style={{ animationDelay: `${delay}ms` }}
+                  />
+                ))}
+              </div>
+            </article>
+          </>
+        )}
       </div>
 
       <div className="flex-1 space-y-1 border-t pt-2">

@@ -148,3 +148,21 @@ body {
     @apply font-sans;
   }
 }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0) scale(0.9);
+    opacity: .5;
+  }
+
+  30% {
+    transform: translateY(-3px) scale(1);
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .animate-typing {
+    animation: typing-bounce 1s infinite ease-in-out;
+  }
+}
