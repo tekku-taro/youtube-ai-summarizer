@@ -51,7 +51,7 @@ export class MarkdownService {
     lines.push('## 要約');
     lines.push('');
 
-    lines.push(summary.content);
+    lines.push(summary.content.trim());
 
     lines.push('');
 
@@ -99,7 +99,7 @@ export class MarkdownService {
       lines.push(`### ${this.getRoleTitle(message.role)}`);
       lines.push('');
 
-      lines.push(message.content);
+      lines.push(message.content.trim());
       lines.push('');
 
       if (message.usage) {

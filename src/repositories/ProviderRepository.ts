@@ -14,7 +14,7 @@ export class ProviderRepository {
   }
 
   public async createAndGet(provider: ProviderType): Promise<ProviderConfig> {
-      const providerConfigRepository = new ProviderConfigRepository();
+    const providerConfigRepository = new ProviderConfigRepository();
     
     const providerConfig = providerConfigRepository.find(provider);
     const next = { [provider]: providerConfig};

@@ -29,7 +29,7 @@ export class VideoPlayerService implements IVideoPlayerService {
       } catch (messagingError:unknown) {
         // 「Could not establish connection」をキャッチした場合
         console.warn('Content script not ready. Attempting to execute script dynamically...');
-
+        console.warn(messagingError);
         // 万が一 Content Script が注入されていない場合、動的に注入して即座にシーク実行するフォールバック
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
