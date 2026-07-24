@@ -1,15 +1,19 @@
-export function ErrorHeader({error, onClose}:{
+export function ErrorHeader({
+  error, 
+  // onClose
+}:{
   error:string|undefined;
-  onClose?: () => void;
+  // onClose?: () => void;
 }) {
-  const handleClose = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      // デフォルト動作: ブラウザのポップアップウィンドウを閉じる
-      window.close();
-    }
-  };
+
+  // const handleClose = () => {
+  //   if (onClose) {
+  //     onClose();
+  //   } else {
+  //     // デフォルト動作: ブラウザのポップアップウィンドウを閉じる
+  //     window.close();
+  //   }
+  // };
 
   return (
     <header
@@ -34,7 +38,7 @@ export function ErrorHeader({error, onClose}:{
         )}
       </div>
 
-      <button
+      {/* <button
         type="button"
         aria-label="Close"
         onClick={handleClose}
@@ -51,7 +55,7 @@ export function ErrorHeader({error, onClose}:{
         "
       >
         ✕
-      </button>
+      </button> */}
 
     </header>
   );

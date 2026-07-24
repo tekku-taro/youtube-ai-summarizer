@@ -1,19 +1,24 @@
 import type { VideoData } from "@/models";
 
-export function Header({isYoutubePage, error, currentVideo = null, onClose}:{
+export function Header({
+  isYoutubePage, 
+  error, 
+  currentVideo = null, 
+  // onClose
+}:{
   isYoutubePage:boolean;
   error:string|undefined;
   currentVideo?:VideoData|null|undefined;
-  onClose?: () => void;
+  // onClose?: () => void;
 }) {
-  const handleClose = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      // デフォルト動作: ブラウザのポップアップウィンドウを閉じる
-      window.close();
-    }
-  };
+  // const handleClose = () => {
+  //   if (onClose) {
+  //     onClose();
+  //   } else {
+  //     // デフォルト動作: ブラウザのポップアップウィンドウを閉じる
+  //     window.close();
+  //   }
+  // };
 
   return (
     <header
@@ -47,7 +52,7 @@ export function Header({isYoutubePage, error, currentVideo = null, onClose}:{
           </p>
         )}
       </div>
-
+{/* 
       <button
         type="button"
         aria-label="Close"
@@ -65,7 +70,7 @@ export function Header({isYoutubePage, error, currentVideo = null, onClose}:{
         "
       >
         ✕
-      </button>
+      </button> */}
 
     </header>
   );
