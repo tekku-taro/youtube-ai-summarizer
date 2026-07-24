@@ -1,8 +1,10 @@
 import { useAppStore } from '@/stores/appStore';
 
 import type {
+  ChatMessage,
   ProviderConfig,
   Settings,
+  SummaryData,
   VideoData,
 } from '@/models';
 
@@ -34,6 +36,24 @@ export class AppStore implements IAppStore {
     useAppStore
       .getState()
       .setCurrentVideo(video);
+  }
+
+  // ストリーミング更新メソッドの追加
+  public updateStreamingSummary(
+    summary: SummaryData,
+  ): void {
+    useAppStore
+      .getState()
+      .updateStreamingSummary(summary);
+  }
+
+  public updateStreamingChatMessage(
+    chatSessionId: string, 
+    message: ChatMessage
+  ): void {
+    useAppStore
+      .getState()
+      .updateStreamingChatMessage(chatSessionId, message);
   }
 
   public setModels(

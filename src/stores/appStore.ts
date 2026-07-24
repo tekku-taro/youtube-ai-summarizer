@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 
 import type {
+  ChatMessage,
   ProviderConfig,
   Settings,
+  SummaryData,
   VideoData,
 } from '@/models';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
@@ -50,6 +52,11 @@ interface AppStoreActions {
   setCurrentVideo(video: VideoData): void;
 
   clearCurrentVideo(): void;
+
+  // ストリーミング用の更新アクションを追加
+  updateStreamingSummary(summary: SummaryData): void;
+
+  updateStreamingChatMessage(chatSessionId: string, message: ChatMessage): void;
 
   setModels(models: ModelInfo[]): void;
 
@@ -107,6 +114,66 @@ export const useAppStore =
       set({
         currentVideo: undefined,
       }),
+
+    // ストリーミング中に届いたテキストを含んだ SummaryData を受取り、
+    // currentVideo 内の summaries をリアルタイム更新（未存在なら追加）する
+    updateStreamingSummary: (summary: SummaryData) => {
+      const currentVideo = get().currentVideo;
+      if (!currentVideo) return;
+
+      const existingIndex = currentVideo.summaries.findIndex(
+        (s) => s.id === summary.id,
+      );
+
+      const updatedSummaries = [...currentVideo.summaries];
+
+      if (existingIndex >= 0) {
+        // すでにリストにある場合は内容を上書き
+        updatedSummaries[existingIndex] = { ...summary };
+      } else {
+        // まだリストになければ末尾に追加（生成開始直後など）
+        updatedSummaries.push({ ...summary });
+      }
+
+      set({
+        currentVideo: {
+          ...currentVideo,
+          summaries: updatedSummaries,
+        },
+      });
+    },
+
+    updateStreamingChatMessage: (chatSessionId, message) => {
+      const currentVideo = get().currentVideo;
+      if (!currentVideo) return;
+
+      const updatedSessions = currentVideo.chatSessions.map((session) => {
+        if (session.id !== chatSessionId) return session;
+
+        const existingMsgIndex = session.messages.findIndex((m) => m.id === message.id);
+        const updatedMessages = [...session.messages];
+
+        if (existingMsgIndex >= 0) {
+          // すでに存在する（アシスタントのメッセージ更新）
+          updatedMessages[existingMsgIndex] = { ...message };
+        } else {
+          // まだ存在しない（メッセージ追加）
+          updatedMessages.push({ ...message });
+        }
+
+        return {
+          ...session,
+          messages: updatedMessages,
+        };
+      });
+
+      set({
+        currentVideo: {
+          ...currentVideo,
+          chatSessions: updatedSessions,
+        },
+      });
+    },
 
     setModels: (models) =>
       set({

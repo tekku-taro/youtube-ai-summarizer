@@ -12,7 +12,7 @@ import { GenerateService } from '@/services/GenerateService';
 
 import { ProviderFactory } from '@/providers/ProviderFactory';
 
-import type { ChatSession, ProviderConfig, Settings, SummaryData, VideoData } from '@/models';
+import type { ChatMessage, ChatSession, ProviderConfig, Settings, SummaryData, VideoData } from '@/models';
 import type { ChatRequestDto, ChatResult, ModelListResult, SummaryRequestDto, SummaryResult } from '@/dto';
 import {toPlainText} from '@/utils/TranscriptUtil';
 import { TabType, type ModelInfo, type ProviderType, type SummaryType } from '@/value-objects';
@@ -378,22 +378,22 @@ export class AIFacade {
     request: SummaryRequestDto,
   ): Promise<SummaryResult> {
     
-      const summary: SummaryData = {
-        id: crypto.randomUUID(),
-        cacheKey: '',
-        summaryType: request.summaryType,
-        provider: this.providerConfig.provider,
-        model: request.options.model,
-        thinking: request.options.thinking,
-        content: '',
-        promptVersion: '',
-        usage: {
-          inputTokens:undefined,
-          outputTokens:undefined,
-          totalTokens:undefined,
-        },
-        createdAt: '',
-      };
+    const summary: SummaryData = {
+      id: crypto.randomUUID(),
+      cacheKey: '',
+      summaryType: request.summaryType,
+      provider: this.providerConfig.provider,
+      model: request.options.model,
+      thinking: request.options.thinking,
+      content: '',
+      promptVersion: '',
+      usage: {
+        inputTokens:undefined,
+        outputTokens:undefined,
+        totalTokens:undefined,
+      },
+      createdAt: '',
+    };
 
     try {
       this.appStore.setLoading(true, TabType.Summary);
@@ -408,11 +408,24 @@ export class AIFacade {
         throw new Error('Transcript not found.');
       }
 
+      // 画面側にリアルタイム表示するため、
+      // Store の currentVideo 内の summaries をリアルタイム更新
+      this.appStore.updateStreamingSummary(summary); 
+      let liveContent = '';
+
       const result =
-        await generateService.summarize(
+        await generateService.summarizeStream(
           toPlainText(video.transcript),
           request.summaryType,
           request.options,
+          (chunk: string) => {
+            // 1文字・1単語ずつチャンクが届くたびにストアの状態を更新（画面がリアルタイム再描画される）
+            liveContent += chunk;
+            summary.content = liveContent;
+
+            // Storeにストリーミング中の文字列をリアルタイム反映する更新メソッドを呼ぶ
+            this.appStore.updateStreamingSummary(summary); 
+          },          
         );
 
       summary.content = result.content;
@@ -507,41 +520,51 @@ export class AIFacade {
         session = await this.startSession();
       }
       const requestTimeStamp = new Date().toISOString();
-      session.messages.push({
+      const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'user',
         content: request.userMessage,
         createdAt: requestTimeStamp,
-      });
-
-      const result =
-        await generateService.chat(
-          toPlainText(this.currentVideo.transcript),
-          session.messages,
-          request.userMessage,
-          request.options,
-        );
-
-      console.log('chat video after generateService.chat', this.currentVideo)
-
-
-      session.messages.push({
+      }
+      session.messages.push(userMsg);
+      // AI（アシスタント）の空メッセージを作成
+      const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: result.content,
-        usage: result.usage,
-        createdAt: result.generatedAt,
-      });
+        content: '',
+        createdAt: requestTimeStamp,
+      };
+      session.messages.push(assistantMsg);
+      // この段階で即座にストアを更新し、UI上に「ユーザー発言」と「空のAIバブル」を表示
+      // this.appStore.setCurrentVideo(this.currentVideo);
+      this.appStore.updateStreamingChatMessage(session.id, userMsg);
+      this.appStore.updateStreamingChatMessage(session.id, assistantMsg);
+      
+      let liveContent = '';
+      const result =
+        await generateService.chatStream(
+          toPlainText(this.currentVideo.transcript),
+          session.messages.slice(0, -1), // 最後の空メッセージを除いた履歴を送信
+          request.userMessage,
+          request.options,
+          (chunk: string) => {
+            liveContent += chunk;
+            assistantMsg.content = liveContent;
 
+            // リアルタイムでアシスタントのメッセージのみ更新
+            this.appStore.updateStreamingChatMessage(session.id, assistantMsg);
+          },          
+        );
+
+      // 4. ストリーム完了後の最終データセット
+      assistantMsg.content = result.content;
+      assistantMsg.usage = result.usage;
+      assistantMsg.createdAt = result.generatedAt;
       session.updatedAt = result.generatedAt;
       this.currentVideo.updatedAt = result.generatedAt;
 
-      // console.log('chat video before save', this.currentVideo)
       await this.videoRepository.save(this.currentVideo);
-      // console.log('chat video before currentVideo', this.currentVideo)
-      // console.log('chat video before setCurrentVideo', this.currentVideo)
       this.appStore.setCurrentVideo(this.currentVideo);
-      // console.log('chat video after setCurrentVideo', this.currentVideo)
 
       console.log('chat session', session)
       return {

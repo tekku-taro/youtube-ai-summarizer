@@ -61,7 +61,7 @@ export function Tabs({
           <TranscriptTab transcript={transcript} onSeek={onSeek} loading={loading && loadingTab === TabType.Transcript} />
       </TabsContent>
       <TabsContent value={TabType.Chat}>
-          <ChatTab session={chatSession} onSend={onSendChat} loading={loading && loadingTab === TabType.Chat}  />
+          <ChatTab session={chatSession} messages={chatSession?.messages} onSend={onSendChat} loading={loading && loadingTab === TabType.Chat}  />
       </TabsContent>
     </ShadnuiTabs>
     </section>

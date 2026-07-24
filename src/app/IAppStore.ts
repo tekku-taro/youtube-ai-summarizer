@@ -1,6 +1,7 @@
 import type {
   ProviderConfig,
   Settings,
+  SummaryData,
   VideoData,
 } from '@/models';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
@@ -25,4 +26,6 @@ export interface IAppStore {
   setError(error?: string): void;
 
   reset(): void;
+
+  updateStreamingSummary(summary: SummaryData): void;
 }

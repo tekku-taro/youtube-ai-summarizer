@@ -6,7 +6,7 @@ import type { IAIProvider } from '@/providers/IAIProvider';
 import { HttpClient } from '@/utils/HttpClient';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
 import { createAnthropic, type AnthropicLanguageModelOptions } from '@ai-sdk/anthropic';
-import { generateText } from 'ai';
+import { generateText, streamText } from 'ai';
 
 export class AnthropicProvider implements IAIProvider {
   private readonly httpClient = new HttpClient();
@@ -29,6 +29,49 @@ export class AnthropicProvider implements IAIProvider {
     });
 
     return anthropic(modelName);
+  }
+
+  public async generateStream(
+    request: GenerateRequest,
+    onChunk: (chunk: string) => void
+  ): Promise<GenerateResponse> {
+    const selectedModel = this.getProviderModel(request);
+    const systemMessage = request.messages.filter(m => m.role === 'system')?.reduce((acc, m) => acc + m.content, '') || 'You are a helpful assistant.';
+    const chatMessages = request.messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    const result = await streamText({
+      model: selectedModel,
+      instructions : systemMessage,
+      messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+      // thinking（Reasoning）の設定がある場合は以下のように渡せます
+      ...(!request.options.thinking ? { providerOptions: { anthropic: { 
+          effort: "low"
+        }  satisfies AnthropicLanguageModelOptions,
+      } } : {}),
+    });
+
+    let fullText = '';
+
+    // リアルタイムでテキストチャンクを取得してコールバックを実行
+    for await (const textChunk of result.textStream) {
+      fullText += textChunk;
+      onChunk(textChunk);
+    }
+
+    const usage = await result.usage;
+    const finishReason = await result.finishReason;    
+
+    return {
+      content: fullText,
+      finishReason,
+      usage: {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+      },
+    };
   }
 
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {

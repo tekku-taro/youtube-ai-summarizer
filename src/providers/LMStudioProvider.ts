@@ -7,7 +7,7 @@ import { HttpClient } from '@/utils/HttpClient';
 import type { ModelInfo } from '@/value-objects/ModelInfo';
 import type { OpenAILanguageModelResponsesOptions } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { generateText } from 'ai';
+import { generateText, streamText } from 'ai';
 
 export class LMStudioProvider implements IAIProvider {
   private readonly httpClient = new HttpClient();
@@ -26,6 +26,53 @@ export class LMStudioProvider implements IAIProvider {
     });
 
     return lmstudio(modelName);
+  }
+
+  public async generateStream(
+    request: GenerateRequest,
+    onChunk: (chunk: string) => void
+  ): Promise<GenerateResponse> {
+    const selectedModel = this.getProviderModel(request);
+    const systemMessage = request.messages.filter(m => m.role === 'system')?.reduce((acc, m) => acc + m.content, '') || 'You are a helpful assistant.';
+    const chatMessages = request.messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    const result = await streamText({
+      model: selectedModel,
+      instructions : systemMessage,
+      messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+        // thinking（Reasoning）の設定がある場合は以下のように渡せます
+        ...(request.options.thinking ? { providerOptions: { openai: { 
+          reasoningEffort: 'medium'  // 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+          }  satisfies OpenAILanguageModelResponsesOptions,
+        } } : { providerOptions: { openai: { 
+          reasoningEffort: 'none'  // 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+          }  satisfies OpenAILanguageModelResponsesOptions,        
+        }}
+      ),
+    });
+
+    let fullText = '';
+
+    // リアルタイムでテキストチャンクを取得してコールバックを実行
+    for await (const textChunk of result.textStream) {
+      fullText += textChunk;
+      onChunk(textChunk);
+    }
+
+    const usage = await result.usage;
+    const finishReason = await result.finishReason;    
+
+    return {
+      content: fullText,
+      finishReason,
+      usage: {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+      },
+    };
   }
 
   public async generate(request: GenerateRequest): Promise<GenerateResponse> {
