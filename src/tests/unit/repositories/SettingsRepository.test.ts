@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { storage } from '@/repositories/storage';
 import type { Settings } from '@/models/Settings';
-import { SettingsRepository } from '@/repositories';
+import { ProviderConfigRepository, SettingsRepository } from '@/repositories';
+import { ProviderType } from '@/value-objects';
 
 vi.mock('@/repositories/storage', () => ({
   storage: {
@@ -37,12 +38,20 @@ describe('SettingsRepository', () => {
 
     it('ストレージに設定がない場合、既定のデフォルト値を返すこと', async () => {
       vi.mocked(storage.get).mockResolvedValue(null);
-
+      const providerConfig = {
+        provider: ProviderType.OpenAI,
+        apiKey: 'openai_apikey',
+        baseUrl: 'https://api.openai.com/v1',
+      }      
+      vi.spyOn(
+        ProviderConfigRepository.prototype,
+        'getAvailable'
+      ).mockReturnValue(providerConfig);      
       const result = await repository.find();
 
       expect(result).toEqual({
-        provider: 'OpenAI',
-        model: 'gpt-4o-mini',
+        provider: providerConfig.provider,
+        model: '',
         summaryType: 'Important',
         thinking: false,
       });

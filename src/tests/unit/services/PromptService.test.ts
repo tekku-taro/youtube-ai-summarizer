@@ -30,14 +30,14 @@ describe('PromptService', () => {
     it('SummaryType.Context の場合、コンテキスト付き用のシステムプロンプトが正しくセットされること', () => {
       const result = service.createSummaryMessages(mockTranscript, SummaryType.Context);
 
-      expect(result[0]?.content).toContain('# コンテキスト付き主要ポイント');
+      expect(result[0]?.content).toContain('動画で伝えたい「主要ポイント」を5〜10項目に整理する');
       expect(result[1]?.content).toBe(mockTranscript);
     });
 
     it('SummaryType.Detailed の場合、詳細要約用のシステムプロンプトが正しくセットされること', () => {
       const result = service.createSummaryMessages(mockTranscript, SummaryType.Detailed);
 
-      expect(result[0]?.content).toContain('# 詳細要約');
+      expect(result[0]?.content).toContain('画全体をできるだけ網羅');
       expect(result[1]?.content).toBe(mockTranscript);
     });
   });

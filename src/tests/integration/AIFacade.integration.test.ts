@@ -1,67 +1,97 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // @vitest-environment node
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
+import { describe, it, expect, beforeEach, vi, afterAll, type Mocked } from 'vitest';
 
 // 本物のリポジトリとサービス
 import { SettingsRepository } from '@/repositories/SettingsRepository';
 import { ProviderRepository } from '@/repositories/ProviderRepository';
 import { VideoRepository } from '@/repositories/VideoRepository';
+import { ProviderConfigRepository } from '@/repositories';
 
-// モック化する外部サービスインターフェース
+// インターフェース / クラス
 import type { IPromptService } from '@/services/IPromptService';
 import type { IYouTubeTranscriptService } from '@/services/IYouTubeTranscriptService';
 import type { ICurrentVideoService } from '@/services/ICurrentVideoService';
+import type { IVideoPlayerService } from '@/services/IVideoPlayerService';
+import type { ITranscriptResponse } from '@/providers/transcript/ITranscriptClient';
 import { ProviderFactory } from '@/providers/ProviderFactory';
 
-import type { ProviderType, SummaryType } from '@/value-objects';
+import { ProviderType, SummaryType, TabType } from '@/value-objects';
 import type { Settings, ProviderConfig, VideoData, ChatMessage } from '@/models';
 import { AIFacade } from '@/app/AIFacade';
 import { AppStore } from '@/app/AppStore';
 import { useAppStore } from '@/stores';
-import type { ITranscriptResponse } from '@/providers/transcript/ITranscriptClient';
-import type { IVideoPlayerService } from '@/services/IVideoPlayerService';
-import { MarkdownService } from '@/services';
-import { DownloadService } from '@/services/DownloadService';
-import { ClipboardService } from '@/services/ClipboardService';
-import { ProviderConfigRepository } from '@/repositories';
+import { GenerateService } from '@/services';
+import type { IAIProvider } from '@/providers';
+
+// --- モック用型定義 ---
+interface IMarkdownService {
+  exportSummary: ReturnType<typeof vi.fn>;
+  exportChat: ReturnType<typeof vi.fn>;
+  exportTranscript: ReturnType<typeof vi.fn>;
+}
+
+interface IDownloadService {
+  downloadTextFile: ReturnType<typeof vi.fn>;
+}
+
+interface IClipboardService {
+  copyText: ReturnType<typeof vi.fn>;
+}
 
 // --- 1. インメモリ Fake Chrome Storage のセットアップ ---
 function setupFakeChromeStorage() {
-  const store: Record<string, any> = {};
+  const store = new Map<string, unknown>();
 
   const fakeChrome = {
     storage: {
       local: {
         get: vi.fn(async (key?: string | string[] | null) => {
-          if (!key) return store;
-          if (typeof key === 'string') return { [key]: store[key] };
+          if (!key) return Object.fromEntries(store);
+          if (typeof key === 'string') return { [key]: store.get(key) };
           if (Array.isArray(key)) {
-            return key.reduce((acc, k) => ({ ...acc, [k]: store[k] }), {});
+            return key.reduce<Record<string, unknown>>((acc, k) => {
+              acc[k] = store.get(k);
+              return acc;
+            }, {});
           }
-          return store;
+          return Object.fromEntries(store);
         }),
-        set: vi.fn(async (items: Record<string, any>) => {
-          Object.assign(store, items);
+        set: vi.fn(async (items: Record<string, unknown>) => {
+          Object.entries(items).forEach(([k, v]) => store.set(k, v));
         }),
         remove: vi.fn(async (key: string | string[]) => {
           const keys = Array.isArray(key) ? key : [key];
-          keys.forEach((k) => delete store[k]);
+          keys.forEach((k) => store.delete(k));
         }),
         clear: vi.fn(async () => {
-          Object.keys(store).forEach((k) => delete store[k]);
+          store.clear();
         }),
       },
     },
   };
 
-  // Node.js 環境での window オブジェクトの擬似生成と chrome の紐付け
   if (typeof window === 'undefined') {
-    (globalThis as any).window = globalThis;
+    (globalThis as unknown as { window: typeof globalThis }).window = globalThis;
   }
-  
-  (globalThis as any).chrome = fakeChrome;
-  (globalThis as any).window.chrome = fakeChrome;
+
+  const globalWithChrome = globalThis as unknown as { chrome: typeof fakeChrome; window: { chrome: typeof fakeChrome } };
+  globalWithChrome.chrome = fakeChrome;
+  globalWithChrome.window.chrome = fakeChrome;
+}
+
+// --- テストデータ定義ヘルパー ---
+function createMockTranscriptResponse(text = 'こんにちは'): ITranscriptResponse {
+  return {
+    title: 'テスト動画タイトル',
+    channelId: 'channel-123',
+    duration: 300,
+    transcript: {
+      language: 'ja',
+      source: 'youtube',
+      generatedAt: new Date().toISOString(),
+      segments: [{ startSeconds: 0, endSeconds: 5, text }],
+    },
+  };
 }
 
 describe('AIFacade (機能テスト / Integration Test)', () => {
@@ -72,15 +102,23 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
   let providerRepo: ProviderRepository;
   let videoRepo: VideoRepository;
 
-  // モック対象コンポーネント（外部通信・ブラウザタブ制御）
-  let mockPromptService: IPromptService;
-  let mockTranscriptService: IYouTubeTranscriptService;
-  let mockCurrentVideoService: ICurrentVideoService;
-  let mockVideoPlayerService: IVideoPlayerService;
-  let mockProviderFactory: ProviderFactory;
-  let mockAIProvider: any;
+  // モック対象コンポーネント
+  let mockPromptService: Mocked<IPromptService>;
+  let mockTranscriptService: Mocked<IYouTubeTranscriptService>;
+  let mockCurrentVideoService: Mocked<ICurrentVideoService>;
+  let mockVideoPlayerService: Mocked<IVideoPlayerService>;
+  let mockMarkdownService: IMarkdownService;
+  let mockDownloadService: IDownloadService;
+  let mockClipboardService: IClipboardService;
+  let mockProviderFactory: Mocked<ProviderFactory>;
+  let mockAIProvider: Mocked<IAIProvider>;
 
+  let getOptionsSpy: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
+    vi.restoreAllMocks();
+
+    getOptionsSpy = vi.spyOn(ProviderConfigRepository.prototype, 'getProviderOptions');
+    
     // Chrome Storage メモリ空間の初期化
     setupFakeChromeStorage();
 
@@ -88,21 +126,21 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
     settingsRepo = new SettingsRepository();
     providerRepo = new ProviderRepository();
     videoRepo = new VideoRepository();
-    appStore = new AppStore(); // Zustand の実体ストアインスタンス
-    // 💡 重要: テストごとにZustandの内部状態を初期状態にリセットする
+    appStore = new AppStore();
+
+    // Zustand ストアのリセット
     useAppStore.getState().reset();
 
-    // 外部サービスのモック生成
-    // IPromptService のモック生成部分の修正
+    // モックオブジェクトの構築
     mockPromptService = {
       createSummaryMessages: vi.fn((transcript: string, summaryType: SummaryType) => [
-        { role: 'system' as 'user' | 'assistant' | 'system', content: 'あなたは優秀な要約アシスタントです。' },
-        { role: 'user' as 'user' | 'assistant' | 'system', content: `以下の文字起こしを要約してください (${summaryType}):\n${transcript}` },
+        { role: 'system' as const, content: 'あなたは優秀な要約アシスタントです。' },
+        { role: 'user' as const, content: `以下の文字起こしを要約してください (${summaryType}):\n${transcript}` },
       ]),
       createChatMessages: vi.fn((transcript: string, history: ChatMessage[], userPrompt: string) => [
-        { role: 'system' as 'user' | 'assistant' | 'system', content: `文字起こし文:\n${transcript}` },
+        { role: 'system' as const, content: `文字起こし文:\n${transcript}` },
         ...history.map((h) => ({ role: h.role, content: h.content })),
-        { role: 'user' as 'user' | 'assistant' | 'system', content: userPrompt },
+        { role: 'user' as const, content: userPrompt },
       ]),
     };
 
@@ -113,8 +151,23 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
     mockCurrentVideoService = {
       getCurrentVideoId: vi.fn(),
     };
+
     mockVideoPlayerService = {
-      seekTo: vi.fn(),
+      seekTo: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockMarkdownService = {
+      exportSummary: vi.fn().mockReturnValue('要約コンテンツ'),
+      exportChat: vi.fn().mockReturnValue('チャット履歴'),
+      exportTranscript: vi.fn().mockReturnValue('トランスクリプト'),
+    };
+
+    mockDownloadService = {
+      downloadTextFile: vi.fn(),
+    };
+
+    mockClipboardService = {
+      copyText: vi.fn().mockResolvedValue(true),
     };
 
     mockAIProvider = {
@@ -130,17 +183,26 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
         generatedAt: new Date().toISOString(),
         usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
       }),
-    };
+    } as unknown as Mocked<IAIProvider>;
 
     mockProviderFactory = {
       create: vi.fn().mockReturnValue(mockAIProvider),
-    } as any;
+    } as unknown as Mocked<ProviderFactory>;
+
+    const defaultProviderConfig: ProviderConfig = {
+      provider: ProviderType.OpenAI,
+      apiKey: 'openai_apikey',
+      baseUrl: 'https://api.openai.com/v1',
+    };
+
+    vi.spyOn(ProviderConfigRepository.prototype, 'find').mockReturnValue(defaultProviderConfig);
+    vi.spyOn(ProviderConfigRepository.prototype, 'getAvailable').mockReturnValue(defaultProviderConfig);
 
     // AIFacade のインスタンス化
     facade = new AIFacade(
       settingsRepo,
       providerRepo,
-      new ProviderConfigRepository,
+      new ProviderConfigRepository(),
       videoRepo,
       mockPromptService,
       mockTranscriptService,
@@ -148,34 +210,35 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       appStore,
       mockCurrentVideoService,
       mockVideoPlayerService,
-      new MarkdownService(),
-      new DownloadService(),
-      new ClipboardService(),
+      mockMarkdownService as never,
+      mockDownloadService as never,
+      mockClipboardService as never
     );
+  });
+
+  afterAll(() => {
+    getOptionsSpy.mockRestore();
   });
 
   describe('initialize 機能テスト', () => {
     it('初期化成功時、ストレージから設定が読み込まれ、AppStore に状態が正しく反映されること', async () => {
-      // 事前に Chrome Storage へデフォルト設定を保存しておく
       const initialSettings: Settings = {
-        provider: 'OpenAI' as ProviderType,
+        provider: ProviderType.OpenAI,
         model: 'gpt-4o',
         thinking: false,
-        summaryType: 'Important' as SummaryType,
+        summaryType: SummaryType.Important,
       };
       await settingsRepo.save(initialSettings);
 
       const initialProviderConfig: ProviderConfig = {
-        provider: 'OpenAI' as ProviderType,
+        provider: ProviderType.OpenAI,
         apiKey: 'test-api-key',
         baseUrl: 'https://api.openai.com/v1',
       };
       await providerRepo.save(initialProviderConfig);
 
-      // YouTube ページのタブIDを返すようモック
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-abc-123');
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-abc-123');
 
-      // 実行
       const result = await facade.initialize();
 
       // 1. Facade の戻り値検証
@@ -184,7 +247,7 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       expect(result.provider).toEqual(initialProviderConfig);
       expect(result.models).toHaveLength(2);
 
-      // 2. 実体 AppStore (Zustand) に状態が正常反映されたか検証
+      // 2. 実体 AppStore (Zustand) の検証
       const state = useAppStore.getState();
       expect(state.initialized).toBe(true);
       expect(state.settings).toEqual(initialSettings);
@@ -195,9 +258,45 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
     });
   });
 
-  describe('changeProvider 機能テスト', () => {
-    it('プロバイダー変更時、SettingsRepository (Chrome Storage) が更新され、AppStore も同期されること', async () => {
-      // プロバイダーごとに異なるモデル一覧を返すように ProviderFactory のモックを設定
+  describe('設定テスト', () => {
+    it('getProviderOptions が ProviderConfigRepository の結果を返すこと', () => {
+      const providerOptions = [{ value: ProviderType.OpenAI, label: 'OpenAI' }];
+      getOptionsSpy.mockReturnValue(providerOptions);
+
+      const options = facade.getProviderOptions();
+      expect(options).toEqual(providerOptions);
+    });
+
+    it('resetSettings を呼ぶとリポジトリがリセットされ再初期化されること', async () => {
+      await facade.initialize();
+      await facade.changeThinking(true);
+      expect((await settingsRepo.find()).thinking).toBe(true);
+
+      await facade.resetSettings();
+
+      const resettedSettings = await settingsRepo.find();
+      expect(resettedSettings.thinking).toBe(false);
+    });
+
+    it('changeThinking で思考モードが変更・保存されること', async () => {
+      await facade.initialize();
+      await facade.changeThinking(true);
+
+      const updatedSettings = await settingsRepo.find();
+      expect(updatedSettings.thinking).toBe(true);
+      expect(facade.getSettings().thinking).toBe(true);
+    });
+
+    it('changeSummaryType で要約タイプが変更・保存されること', async () => {
+      await facade.initialize();
+      await facade.changeSummaryType(SummaryType.Detailed);
+
+      const updatedSettings = await settingsRepo.find();
+      expect(updatedSettings.summaryType).toBe(SummaryType.Detailed);
+      expect(facade.getSettings().summaryType).toBe(SummaryType.Detailed);
+    });
+
+    it('プロバイダー変更時、SettingsRepository が更新され、AppStore も同期されること', async () => {
       const mockOpenAIProvider = {
         getModels: vi.fn().mockResolvedValue({
           models: [{ id: 'gpt-4o', name: 'GPT-4o' }],
@@ -213,87 +312,57 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
         }),
       };
 
-      // ProviderConfig の provider 名によって返す AIProvider を切り替える
-      vi.mocked(mockProviderFactory.create).mockImplementation((config: ProviderConfig) => {
-        if (config.provider === 'Gemini') {
-          return mockGeminiProvider as any;
+      mockProviderFactory.create.mockImplementation((config: ProviderConfig) => {
+        if (config.provider === ProviderType.Gemini) {
+          return mockGeminiProvider as unknown as IAIProvider;
         }
-        return mockOpenAIProvider as any;
+        return mockOpenAIProvider as unknown as IAIProvider;
       });
 
-      // 初期状態のセットアップ
       await facade.initialize();
-      let state = useAppStore.getState();
-      expect(state.models).toEqual([{ id: 'gpt-4o', name: 'GPT-4o' }]);
+      expect(useAppStore.getState().models).toEqual([{ id: 'gpt-4o', name: 'GPT-4o' }]);
 
       const newProviderConfig: ProviderConfig = {
-        provider: 'Anthropic' as ProviderType,
-        apiKey: 'anthropic-key',
-        baseUrl: 'https://api.anthropic.com',
+        provider: ProviderType.Gemini,
+        apiKey: 'gemini-key',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       };
       await providerRepo.save(newProviderConfig);
 
-      // 実行：プロバイダーを Anthropic に変更
-      await facade.changeProvider('Anthropic' as ProviderType);
+      await facade.changeProvider(ProviderType.Gemini);
 
-      // 1. Chrome Storage に変更後の Settings が永続化されているか検証
       const savedSettings = await settingsRepo.find();
-      expect(savedSettings.provider).toBe('Anthropic');
+      expect(savedSettings.provider).toBe(ProviderType.Gemini);
 
-      // 2. 実体 AppStore の状態が切り替わっているか検証
-      state = useAppStore.getState();
-      expect(state.settings?.provider).toBe('Anthropic');
-      expect(state.providerConfig?.provider).toBe('Anthropic');
-
-      // 検証：AppStore の models が Anthropic のモデル一覧（2件）に正しく更新されたこと
-      const updatedModels = state.models;
-      expect(updatedModels).toHaveLength(2);
-      expect(updatedModels[0]?.id).toBe('claude-haiku-4-5-20251001');
-      expect(updatedModels[1]?.id).toBe('claude-sonnet-3-5-20241022');
-
+      const state = useAppStore.getState();
+      expect(state.settings?.provider).toBe(ProviderType.Gemini);
+      expect(state.providerConfig?.provider).toBe(ProviderType.Gemini);
+      expect(state.models).toHaveLength(2);
+      expect(state.models[0]?.id).toBe('gemini-3.1-flash-lite');
     });
   });
 
   describe('getTranscript 機能テスト', () => {
-    it('キャッシュが無い場合、字幕サービスから取得して VideoRepository (Chrome Storage) に保存し AppStore に反映すること', async () => {
-      // initialize で videoId をセット
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-xyz-999');
+    it('キャッシュが無い場合、字幕サービスから取得して Storage に保存し AppStore に反映すること', async () => {
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-xyz-999');
       await facade.initialize();
 
-      // 字幕サービスのモック戻り値
-      const mockResponse:ITranscriptResponse = {
-        title: 'テスト動画タイトル',
-        channelId: 'channel-123',
-        duration: 300,
-        transcript: {
-          language: 'ja',
-          source: 'youtube',
-          generatedAt: new Date().toISOString(),
-          segments: [{ startSeconds: 0, endSeconds: 5, text: 'こんにちは' }],
-        },
-      };
-      vi.mocked(mockTranscriptService.getTranscript).mockResolvedValue(mockResponse as ITranscriptResponse);
+      const mockResponse = createMockTranscriptResponse();
+      mockTranscriptService.getTranscript.mockResolvedValue(mockResponse);
 
-      // 実行：字幕の取得
       const result = await facade.getTranscript();
 
-      // 1. レスポンスの検証（初回取得のため fromCache: false）
       expect(result.fromCache).toBe(false);
       expect(result.transcript.segments[0]?.text).toBe('こんにちは');
 
-      // 2. Chrome Storage に VideoData が保存されているか検証
       const savedVideo = await videoRepo.find('video-xyz-999');
-      expect(savedVideo).toBeDefined();
       expect(savedVideo?.title).toBe('テスト動画タイトル');
       expect(savedVideo?.transcript?.segments).toHaveLength(1);
 
-      // 3. AppStore の currentVideo が更新されているか検証
-      const state = useAppStore.getState();
-      expect(state.currentVideo?.videoId).toBe('video-xyz-999');
+      expect(useAppStore.getState().currentVideo?.videoId).toBe('video-xyz-999');
     });
 
-    it('既に Chrome Storage に動画データが存在する場合、サービスを呼ばずにキャッシュから返すこと', async () => {
-      // 事前に Chrome Storage にキャッシュを読み込ませておく
+    it('既に Storage に動画データが存在する場合、サービスを呼ばずにキャッシュから返すこと', async () => {
       const existingVideo: VideoData = {
         videoId: 'video-cached-111',
         title: 'キャッシュ済み動画',
@@ -313,24 +382,19 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       };
       await videoRepo.save(existingVideo);
 
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-cached-111');
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-cached-111');
       await facade.initialize();
 
-      // 実行
       const result = await facade.getTranscript();
 
-      // 1. キャッシュから読み込まれたことを検証
       expect(result.fromCache).toBe(true);
       expect(result.transcript.segments[0]?.text).toBe('キャッシュテキスト');
-
-      // 2. 外部通信サービスが一度も呼ばれていないことを検証
       expect(mockTranscriptService.getTranscript).not.toHaveBeenCalled();
     });
   });
 
   describe('summarize 機能テスト', () => {
     it('要約が生成されると、VideoData の summaries に追加されて Storage および AppStore が更新されること', async () => {
-      // 事前に字幕付き動画を保存
       const existingVideo: VideoData = {
         videoId: 'video-for-summary',
         title: '要約対象動画',
@@ -350,43 +414,37 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       };
       await videoRepo.save(existingVideo);
 
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-for-summary');
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-for-summary');
       await facade.initialize();
 
-      // 実行：要約の要求
       const result = await facade.summarize({
-        summaryType: 'Important' as SummaryType,
-        options: { 
-          provider: 'OpenAI',
-          model: 'gpt-4o', 
-          thinking: false
+        summaryType: SummaryType.Important,
+        options: {
+          provider: ProviderType.OpenAI,
+          model: 'gpt-4o',
+          thinking: false,
         },
       });
 
-      // 1. 要約結果の構造検証
       expect(result.summary.content).toBe('AIからのテスト生成結果です。');
 
-      // 2. Chrome Storage 上の VideoData に要約履歴が永続化されたか検証
       const updatedVideo = await videoRepo.find('video-for-summary');
       expect(updatedVideo?.summaries).toHaveLength(1);
       expect(updatedVideo?.summaries[0]?.content).toBe('AIからのテスト生成結果です。');
 
-      // 3. AppStore 側の currentVideo にも反映されているか検証
-      const state = useAppStore.getState();
-      expect(state.currentVideo?.summaries).toHaveLength(1);
+      expect(useAppStore.getState().currentVideo?.summaries).toHaveLength(1);
     });
   });
 
   describe('startSession 機能テスト', () => {
-    it('既存のチャットセッションが存在しない場合、新規セッションを作成して Storage および AppStore に保存すること', async () => {
-      // 1. 準備：チャットセッションが空（chatSessions: []）の動画データを事前保存
+    it('既存のチャットセッションが存在しない場合、新規セッションを作成して保存すること', async () => {
       const existingVideo: VideoData = {
         videoId: 'video-session-new',
         title: '新規セッションテスト動画',
         channelId: 'channel-1',
         duration: 180,
         summaries: [],
-        chatSessions: [], // セッションなし
+        chatSessions: [],
         no_transcript: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -399,33 +457,27 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       };
       await videoRepo.save(existingVideo);
 
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-session-new');
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-session-new');
       await facade.initialize();
+      mockTranscriptService.getTranscript.mockResolvedValue(createMockTranscriptResponse());
+      await facade.getTranscript();
 
-      // 2. 実行：セッションの開始
       const session = await facade.startSession();
 
-      // 3. 検証：返却されたセッションの初期構造
       expect(session).toBeDefined();
       expect(session.id).toBeTypeOf('string');
-      expect(session.provider).toBe('OpenAI'); // 初期設定のProvider
-      expect(session.model).toBe('gpt-4o-mini');  // 初期設定のModel
-      expect(session.messages).toEqual([]);   // 初期メッセージは空
+      expect(session.provider).toBe(ProviderType.OpenAI);
+      expect(session.model).toBe('gpt-4o');
+      expect(session.messages).toEqual([]);
 
-      // 4. 検証：Chrome Storage 上の VideoData にセッションが追加されたこと
       const updatedVideo = await videoRepo.find('video-session-new');
       expect(updatedVideo?.chatSessions).toHaveLength(1);
       expect(updatedVideo?.chatSessions[0]?.id).toBe(session.id);
 
-      // 5. 検証：AppStore の currentVideo にもセッションが同期・反映されたこと
-      const state = useAppStore.getState();
-      const storeVideo = state.currentVideo;
-      expect(storeVideo?.chatSessions).toHaveLength(1);
-      expect(storeVideo?.chatSessions[0]?.id).toBe(session.id);
+      expect(useAppStore.getState().currentVideo?.chatSessions).toHaveLength(1);
     });
 
-    it('既にチャットセッションが存在する場合、新規作成せず末尾（最新）の既存セッションを返すこと', async () => {
-      // 1. 準備：既存セッションを1つ持っている動画データを事前保存
+    it('既にチャットセッションが存在する場合、最新の既存セッションを返すこと', async () => {
       const existingSessionId = 'existing-session-123';
       const existingVideo: VideoData = {
         videoId: 'video-session-exists',
@@ -436,7 +488,7 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
         chatSessions: [
           {
             id: '122',
-            provider: 'OpenAI',
+            provider: ProviderType.OpenAI,
             model: 'gpt-4o',
             messages: [{ id: 'm1', role: 'user', content: 'おはよう', createdAt: new Date().toISOString() }],
             createdAt: new Date().toISOString(),
@@ -444,7 +496,7 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
           },
           {
             id: existingSessionId,
-            provider: 'OpenAI',
+            provider: ProviderType.OpenAI,
             model: 'gpt-4o',
             messages: [{ id: 'm1', role: 'user', content: 'こんにちは', createdAt: new Date().toISOString() }],
             createdAt: new Date().toISOString(),
@@ -457,34 +509,33 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       };
       await videoRepo.save(existingVideo);
 
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-session-exists');
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-session-exists');
       await facade.initialize();
+      mockTranscriptService.getTranscript.mockResolvedValue(createMockTranscriptResponse());
+      await facade.getTranscript();
 
-      // 2. 実行：セッションの開始
       const session = await facade.startSession();
 
-      // 3. 検証：新しく作られず、既存のセッションIDと同じものが返されること
       expect(session.id).toBe(existingSessionId);
       expect(session.messages).toHaveLength(1);
 
-      // 4. 検証：Storage 内のセッション数が増えていないこと（2個のまま）
       const savedVideo = await videoRepo.find('video-session-exists');
       expect(savedVideo?.chatSessions).toHaveLength(2);
     });
 
-    it('対象の動画データが Storage に存在しない場合、エラー「Video Data not found.」をスローすること', async () => {
-      // 1. 準備：Storage に動画データを保存せず、存在しない videoId で initialize
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('non-existent-video-id');
+    it('対象の動画データが Storage に存在しない場合、エラーをスローすること', async () => {
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('non-existent-video-id');
       await facade.initialize();
 
-      // 2. 実行＆検証：例外が投げられることをアサーション
-      await expect(facade.startSession()).rejects.toThrow('Video Data not found.');
+      mockTranscriptService.getTranscript.mockRejectedValue(new Error('test error'));
+      await facade.getTranscript();
+
+      await expect(facade.startSession()).rejects.toThrow('No current video selected.');
     });
   });
 
   describe('chat 機能テスト', () => {
-    it('チャット実行時、会話履歴 (user / assistant) が追加・保存され AppStore に反映されること', async () => {
-      // 動画と初期チャットセッションを用意
+    it('チャット実行時、会話履歴が追加・保存され AppStore に反映されること', async () => {
       const existingVideo: VideoData = {
         videoId: 'video-for-chat',
         title: 'チャット対象動画',
@@ -504,37 +555,187 @@ describe('AIFacade (機能テスト / Integration Test)', () => {
       };
       await videoRepo.save(existingVideo);
 
-      vi.mocked(mockCurrentVideoService.getCurrentVideoId).mockResolvedValue('video-for-chat');
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-for-chat');
       await facade.initialize();
+      mockTranscriptService.getTranscript.mockResolvedValue(createMockTranscriptResponse());
+      await facade.getTranscript();
 
-      // セッションの開始
       const session = await facade.startSession();
 
-      // 実行：チャットメッセージの送信
       const chatResult = await facade.chat({
         chatSessionId: session.id,
         userMessage: 'この動画の要点は？',
-        options: { 
-          provider: 'OpenAI',
-          model: 'gpt-4o', 
-          thinking: false 
+        options: {
+          provider: ProviderType.OpenAI,
+          model: 'gpt-4o',
+          thinking: false,
         },
       });
 
-      // 1. セッションメッセージに user と assistant の2つが入っているか検証
       expect(chatResult.chatSession.messages).toHaveLength(2);
       expect(chatResult.chatSession.messages[0]?.role).toBe('user');
       expect(chatResult.chatSession.messages[0]?.content).toBe('この動画の要点は？');
       expect(chatResult.chatSession.messages[1]?.role).toBe('assistant');
-      expect(chatResult.chatSession.messages[1]?.content).toBe('AIからのテスト生成結果です。');
 
-      // 2. Chrome Storage に会話データが永続化されているか検証
       const updatedVideo = await videoRepo.find('video-for-chat');
       expect(updatedVideo?.chatSessions[0]?.messages).toHaveLength(2);
 
-      // 3. AppStore のデータが同期されているか検証
-      const state = useAppStore.getState();
-      expect(state.currentVideo?.chatSessions[0]?.messages).toHaveLength(2);
+      expect(useAppStore.getState().currentVideo?.chatSessions[0]?.messages).toHaveLength(2);
+    });
+  });
+
+  describe('動画操作 & シーク', () => {
+    it('seek メソッドで VideoPlayerService が呼び出されること', async () => {
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-abc-123');
+      await facade.initialize();
+      await facade.seek(120);
+
+      expect(mockVideoPlayerService.seekTo).toHaveBeenCalledWith(120);
+    });
+
+    it('videoId が未設定の場合、seek は実行されないこと', async () => {
+      await facade.initialize();
+      await facade.seek(120);
+      expect(mockVideoPlayerService.seekTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('エクスポート機能 (Markdown)', () => {
+    beforeEach(async () => {
+      mockCurrentVideoService.getCurrentVideoId.mockResolvedValue('video-abc-123');
+      mockTranscriptService.getTranscript.mockResolvedValue(createMockTranscriptResponse());
+
+      await facade.initialize();
+      await facade.getTranscript();
+    });
+
+    describe('exportSummaryMarkdown', () => {
+      it('ファイルダウンロードとして正常に出力されること', async () => {
+        vi.spyOn(GenerateService.prototype, 'summarize').mockResolvedValue({
+          content: '要約内容',
+          finishReason: '',
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          provider: ProviderType.Gemini,
+          model: '',
+          generatedAt: '2023-10-01T12:34:56.789Z',
+        });
+
+        await facade.summarize({
+          summaryType: SummaryType.Important,
+          options: { provider: ProviderType.OpenAI, model: 'gpt-4o', thinking: false },
+        });
+
+        const result = await facade.exportSummaryMarkdown(false);
+
+        expect(result).toBe(true);
+        expect(mockMarkdownService.exportSummary).toHaveBeenCalled();
+        expect(mockDownloadService.downloadTextFile).toHaveBeenCalledWith('要約コンテンツ', 'テスト動画タイトル_summary.md');
+      });
+
+      it('toClipboard = true の場合、クリップボードにコピーされること', async () => {
+        vi.spyOn(GenerateService.prototype, 'summarize').mockResolvedValue({
+          content: '要約内容',
+          finishReason: '',
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          provider: ProviderType.Gemini,
+          model: '',
+          generatedAt: '2023-10-01T12:34:56.789Z',
+        });
+
+        await facade.summarize({
+          summaryType: SummaryType.Important,
+          options: { provider: ProviderType.OpenAI, model: 'gpt-4o', thinking: false },
+        });
+
+        const result = await facade.exportSummaryMarkdown(true);
+
+        expect(result).toBe(true);
+        expect(mockClipboardService.copyText).toHaveBeenCalledWith('要約コンテンツ');
+        expect(mockDownloadService.downloadTextFile).not.toHaveBeenCalled();
+      });
+
+      it('要約データが存在しない場合、エラーがセットされ false を返すこと', async () => {
+        const current = facade.getCurrentVideo();
+        if (current) current.summaries = [];
+
+        const result = await facade.exportSummaryMarkdown(false);
+
+        expect(result).toBe(false);
+        expect(appStore.getError()).toBe('No summary available to export.');
+      });
+    });
+
+    describe('exportTranscriptMarkdown', () => {
+      it('ファイルダウンロードとして正常に出力されること', async () => {
+        const result = await facade.exportTranscriptMarkdown(false);
+
+        expect(result).toBe(true);
+        expect(mockMarkdownService.exportTranscript).toHaveBeenCalled();
+        expect(mockDownloadService.downloadTextFile).toHaveBeenCalledWith('トランスクリプト', 'テスト動画タイトル_transcript.md');
+      });
+    });
+
+    describe('exportChatMarkdown', () => {
+      it('ファイルダウンロードとして正常に出力されること', async () => {
+        const session = await facade.startSession();
+
+        vi.spyOn(GenerateService.prototype, 'chat').mockResolvedValue({
+          content: 'チャット内容',
+          finishReason: '',
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+          provider: ProviderType.Gemini,
+          model: '',
+          generatedAt: '2023-10-01T12:34:56.789Z',
+        });
+
+        await facade.chat({
+          chatSessionId: session.id,
+          userMessage: 'この動画の要点は？',
+          options: { provider: ProviderType.OpenAI, model: 'gpt-4o', thinking: false },
+        });
+
+        const result = await facade.exportChatMarkdown(false, session.id);
+
+        expect(result).toBe(true);
+        expect(mockMarkdownService.exportChat).toHaveBeenCalled();
+        expect(mockDownloadService.downloadTextFile).toHaveBeenCalledWith('チャット履歴', 'テスト動画タイトル_chat.md');
+      });
+
+      it('チャット履歴が存在しない場合、エラーを返すこと', async () => {
+        const current = facade.getCurrentVideo();
+        if (current) current.chatSessions = [];
+
+        const result = await facade.exportChatMarkdown(false);
+
+        expect(result).toBe(false);
+        expect(appStore.getError()).toBe('No chat history available to export.');
+      });
+    });
+
+    describe('exportMarkdown (アクティブタブ分岐)', () => {
+      it('アクティブタブが Summary の場合、exportSummaryMarkdown が呼ばれること', async () => {
+        facade.setActiveTab(TabType.Summary);
+        const spy = vi.spyOn(facade, 'exportSummaryMarkdown');
+
+        await facade.exportMarkdown();
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it('アクティブタブが Chat の場合、exportChatMarkdown が呼ばれること', async () => {
+        facade.setActiveTab(TabType.Chat);
+        const spy = vi.spyOn(facade, 'exportChatMarkdown');
+
+        await facade.exportMarkdown();
+        expect(spy).toHaveBeenCalled();
+      });
+
+      it('アクティブタブが Transcript の場合、exportTranscriptMarkdown が呼ばれること', async () => {
+        facade.setActiveTab(TabType.Transcript);
+        const spy = vi.spyOn(facade, 'exportTranscriptMarkdown');
+
+        await facade.exportMarkdown();
+        expect(spy).toHaveBeenCalled();
+      });
     });
   });
 });

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { storage } from '@/repositories/storage';
 import type { ProviderConfig } from '@/models/ProviderConfig';
-import type { ProviderType } from '@/value-objects/ProviderType';
-import { ProviderRepository } from '@/repositories';
+import { ProviderType } from '@/value-objects/ProviderType';
+import { ProviderConfigRepository, ProviderRepository } from '@/repositories';
 
 // storage モジュールをモック化
 vi.mock('@/repositories/storage', () => ({
@@ -11,6 +11,8 @@ vi.mock('@/repositories/storage', () => ({
     set: vi.fn(),
   },
 }));
+
+
 
 describe('ProviderRepository', () => {
   let repository: ProviderRepository;
@@ -36,14 +38,23 @@ describe('ProviderRepository', () => {
 
     it('ストレージにデータがない、または該当するプロバイダーがない場合、デフォルト値を返すこと', async () => {
       vi.mocked(storage.get).mockResolvedValue(null);
-
+      const providerConfig = {
+        provider: ProviderType.OpenAI,
+        apiKey: 'openai_apikey',
+        baseUrl: 'https://api.openai.com/v1',
+      }
+      vi.spyOn(
+        ProviderConfigRepository.prototype,
+        'find'
+      ).mockReturnValue(providerConfig);      
       const result = await repository.find('OpenAI' as ProviderType);
 
-      expect(result).toEqual({
-        provider: 'OpenAI',
-        baseUrl: '',
-        timeout: 10000,
-      });
+      expect(result).toEqual(providerConfig);
+
+
+      expect(storage.set).toHaveBeenCalledWith('providers', {
+        OpenAI: providerConfig,
+      });      
     });
   });
 
